@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 import { ONBOARDER_TIMEOUT_MS } from '@slark/shared';
 import type { Project } from '@slark/shared';
 import type { Database } from 'better-sqlite3';
-import { createCursorAdapter } from '../agents/adapter-factory.js';
+import { createSystemAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
 import { onboardingRepo } from '../db/repos.js';
 
@@ -57,7 +57,7 @@ export async function runOnboarderForProject(
   }
 
   // 没装 cursor backend 或 workspace 完全空白 → 写一个 fallback
-  const adapter = createCursorAdapter();
+  const adapter = await createSystemAdapter();
   const install = await adapter.checkInstallation();
   if (!install.installed || (!readme && !pkgJson && recentCommits.length === 0)) {
     onboardingRepo.upsert(db, {

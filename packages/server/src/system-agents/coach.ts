@@ -20,7 +20,7 @@
 import { COACH_NEGATIVE_THRESHOLD, COACH_TIMEOUT_MS, EVALUATOR_WINDOW_MS } from '@slark/shared';
 import type { Agent, AgentFeedback, AgentObservation } from '@slark/shared';
 import type { Database } from 'better-sqlite3';
-import { createCursorAdapter } from '../agents/adapter-factory.js';
+import { createSystemAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
 import {
   agentRepo,
@@ -56,7 +56,7 @@ export async function runCoachOnce(
     proposals_created: 0,
     skipped: [],
   };
-  const adapter = createCursorAdapter();
+  const adapter = await createSystemAdapter();
   const install = await adapter.checkInstallation();
   if (!install.installed) return summary;
 
@@ -108,7 +108,7 @@ export async function runCoachForAgent(
   const observations = observationRepo.listByAgent(db, agent.id, { since, limit: 50 });
   if (observations.length === 0) return null;
 
-  const adapter = createCursorAdapter();
+  const adapter = await createSystemAdapter();
   const prompt = buildCoachPrompt(agent, observations, hot);
   const result = await runWithAdapter(
     adapter,

@@ -34,3 +34,23 @@ export function createAdapterForRuntime(runtime: Runtime): CLIAdapter | null {
   if (runtime === 'codex') return createCodexAdapter();
   return null;
 }
+
+export async function createSystemAdapter(): Promise<CLIAdapter> {
+  const configured = (process.env.SLARK_SYSTEM_RUNTIME ?? '').toLowerCase();
+  if (configured === 'cursor') return createCursorAdapter();
+  if (configured === 'codex') return createCodexAdapter();
+
+  const cursor = createCursorAdapter();
+  const cursorInstall = await cursor.checkInstallation();
+  if (cursorInstall.installed) return cursor;
+
+  const codex = createCodexAdapter();
+  const codexInstall = await codex.checkInstallation();
+  if (codexInstall.installed) return codex;
+
+  return cursor;
+}
+
+export function runtimeForAdapter(adapter: CLIAdapter): Runtime {
+  return adapter.name === 'codex' ? 'codex' : 'cursor';
+}

@@ -17,7 +17,7 @@
 
 import { FACILITATOR_TIMEOUT_MS } from '@slark/shared';
 import type { Agent, Project } from '@slark/shared';
-import { createCursorAdapter } from '../agents/adapter-factory.js';
+import { createSystemAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
 import { parseWorkflowYaml, WorkflowYamlError } from '../workflows/yaml-parser.js';
 
@@ -48,7 +48,7 @@ export async function runFacilitator(
   input: FacilitatorInput,
   logger: FacilitatorLogger = consoleLog,
 ): Promise<FacilitatorOutput> {
-  const adapter = createCursorAdapter();
+  const adapter = await createSystemAdapter();
   const install = await adapter.checkInstallation();
   if (!install.installed) {
     return {

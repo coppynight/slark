@@ -29,7 +29,7 @@ import type {
   Lesson,
   LessonKind,
 } from '@slark/shared';
-import { createCursorAdapter } from '../agents/adapter-factory.js';
+import { createSystemAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
 import { decisionRepo, lessonRepo } from '../db/repos.js';
 import type { Database } from 'better-sqlite3';
@@ -73,7 +73,7 @@ export interface ScribeOutput {
  * Caller（runner / route）负责把结果写入 decisions / lessons 表（review_status='pending'）。
  */
 export async function runScribe(input: ScribeInput): Promise<ScribeOutput> {
-  const adapter = createCursorAdapter();
+  const adapter = await createSystemAdapter();
   const install = await adapter.checkInstallation();
   if (!install.installed) {
     return emptyOutput(

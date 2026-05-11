@@ -21,7 +21,7 @@ import type {
   ObservationPolarity,
 } from '@slark/shared';
 import type { Database } from 'better-sqlite3';
-import { createCursorAdapter } from '../agents/adapter-factory.js';
+import { createSystemAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
 import type { CLIAdapter } from '../agents/types.js';
 import { agentRepo, messageRepo, observationRepo } from '../db/repos.js';
@@ -92,7 +92,7 @@ export async function runEvaluatorOnce(
   db: Database,
   logger: EvaluatorLogger = consoleLog,
 ): Promise<EvaluatorRunSummary> {
-  const adapter = createCursorAdapter();
+  const adapter = await createSystemAdapter();
   const install = await adapter.checkInstallation();
   if (!install.installed) {
     logger.info(`[evaluator] ${adapter.name} not available; skipping`);
