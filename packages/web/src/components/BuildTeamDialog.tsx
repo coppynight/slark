@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { Project, TeamSuggestion } from '@slark/shared';
+import type { Project, Runtime, TeamSuggestion } from '@slark/shared';
 import { GOAL_MAX_LENGTH } from '@slark/shared';
 import {
   createAgent,
@@ -103,7 +103,7 @@ export function BuildTeamDialog({ open, onClose, project, onCreated }: Props) {
           createAgent({
             name: ensureUniqueName(a.name),
             description: a.description,
-            runtime: (a.runtime || 'cursor') as 'cursor',
+            runtime: (a.runtime || 'cursor') as Runtime,
             model: a.model || undefined,
             reasoning: a.reasoning,
             thinking: a.thinking ?? null,

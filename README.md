@@ -2,7 +2,7 @@
 
 > **Programmable AI Team OS** — 本地可编程 AI 团队操作系统。
 > 你设定 Goal，AI 自动配备 Team，团队自己设计 Workflow，系统持续沉淀经验。
-> Agent 能力由 **Cursor CLI** 驱动，无需登录、无需 MCP、数据 100% 本地存储。
+> Agent 能力由 **Cursor CLI / Codex CLI** 驱动，无需 MCP、数据 100% 本地存储。
 
 ## ✨ 特性
 
@@ -14,16 +14,17 @@
 - 📝 **Tasks 管理** — 频道内 Tasks Tab + 全局 Kanban 看板 + 状态变更系统消息
 - 🔍 **全文搜索 / 收藏 / 全局 Threads 聚合**
 - 💾 **100% 本地** — SQLite 存储在 `~/.slark/slark.db`，不经任何云端服务器
-- 🛠️ **适配器架构** — MVP 专注 Cursor CLI，后续可扩展 Codex / Claude Code / 其他 runtime
+- 🛠️ **适配器架构** — 支持 Cursor CLI / Cursor SDK / Codex CLI，后续可扩展 Claude Code / 其他 runtime
 
 ## 🚀 快速开始
 
 ### 前置
 
 - **Node.js ≥ 20**, **pnpm ≥ 10**
-- **[Cursor CLI](https://cursor.sh)** (`cursor-agent`) 已安装并登录
-  - MVP 当前唯一支持的 Runtime
-  - 其他 runtime（Codex / Claude / Kimi / Copilot / Gemini）在 UI 中标为 "coming soon"
+- 至少一个本地 coding runtime 已安装并登录：
+  - **Codex CLI** (`codex`)
+  - **[Cursor CLI](https://cursor.sh)** (`cursor-agent`) 或 Settings 中配置 Cursor SDK API key
+  - 其他 runtime（Claude / Kimi / Copilot / Gemini）在 UI 中标为 "coming soon"
 
 ### 启动
 
@@ -72,7 +73,7 @@ pnpm format          # Prettier
                                                ↓
                               ┌────────────┬────────────────┐
                               │  SQLite    │  CLI Bridge    │
-                              │ ~/.slark   │  cursor-agent  │
+                              │ ~/.slark   │  codex/cursor  │
                               │ /slark.db  │  spawn + NDJSON│
                               └────────────┴────────────────┘
 ```
