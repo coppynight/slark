@@ -5,7 +5,7 @@
  *   - **无 Project**：显示 CTA "Create your first Project"
  *   - **有 Project**：自动 redirect 到第一个 Project 的 `/p/{firstProject.name}`
  *     （ProjectIndexPage 会进一步跳到第一个 channel）
- *   - cursor-agent 未装时显示黄色警告条
+ *   - Cursor / Codex backend 都不可用时显示黄色警告条
  *
  * Project 内的 channel/agent 列表移到 ProjectIndexPage。
  */
@@ -31,9 +31,12 @@ export function WelcomePage() {
   }, []);
 
   const cursor = runtimes.find((r) => r.id === 'cursor');
+  const codex = runtimes.find((r) => r.id === 'codex');
   const cliReady = cursor?.installed;
   const sdkReady = cursorBackend?.backend === 'sdk' && cursorBackend?.hasApiKey;
   const cursorReady = cliReady || sdkReady;
+  const codexReady = Boolean(codex?.installed && codex?.enabled_in_slark);
+  const codingRuntimeReady = cursorReady || codexReady;
 
   // 等 store 加载完成再判断（否则刷新会闪一下 CTA）
   if (!projectsLoaded) {
@@ -59,12 +62,15 @@ export function WelcomePage() {
           Programmable AI Team OS — set a goal, AI configures a team, team designs its own workflow.
         </p>
 
-        {!cursorReady && (
+        {!codingRuntimeReady && (
           <div className="mb-6 p-4 bg-accent-yellow border-2 border-black rounded">
-            <div className="font-bold mb-1">⚠ Cursor backend not configured</div>
+            <div className="font-bold mb-1">⚠ Coding runtime not configured</div>
             <div className="text-sm space-y-1.5">
-              <div>选一种方式让 Slark 调用 Cursor：</div>
+              <div>选一种方式让 Slark 调用本地 coding agent：</div>
               <ul className="list-disc list-inside space-y-0.5 text-[13px]">
+                <li>
+                  本机安装 <code className="font-mono">codex</code> 并登录（Codex CLI）
+                </li>
                 <li>
                   本机安装 <code className="font-mono">cursor-agent</code> 并登录（默认 CLI
                   模式，零配置）

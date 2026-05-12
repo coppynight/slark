@@ -84,7 +84,7 @@ export interface RuntimeMeta {
 
 export const RUNTIME_REGISTRY: RuntimeMeta[] = [
   { id: 'cursor', label: 'Cursor CLI', available: true },
-  { id: 'codex', label: 'Codex CLI', available: false, note: 'coming soon' },
+  { id: 'codex', label: 'Codex CLI', available: true },
   { id: 'claude', label: 'Claude Code', available: false, note: 'coming soon' },
   { id: 'kimi', label: 'Kimi CLI', available: false, note: 'coming soon' },
   { id: 'copilot', label: 'Copilot CLI', available: false, note: 'coming soon' },

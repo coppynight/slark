@@ -15,9 +15,10 @@ import { loadDotenv, configureCursorRipgrep } from '../src/load-env.js';
 const envLoad = loadDotenv();
 const rgConfig = configureCursorRipgrep();
 
-import { createCursorAdapter } from '../src/agents/adapter-factory.js';
+import { createCodexAdapter, createCursorAdapter } from '../src/agents/adapter-factory.js';
 import { CursorSdkAdapter } from '../src/agents/cursor-sdk-adapter.js';
 import { CursorAdapter } from '../src/agents/cursor-adapter.js';
+import { CodexAdapter } from '../src/agents/codex-adapter.js';
 import { summarizeToolArgs } from '../src/agents/summarize-tool-args.js';
 
 if (envLoad.loaded) {
@@ -60,10 +61,18 @@ console.log('1. adapter-factory 选择');
   expect(sdk instanceof CursorSdkAdapter, 'SLARK_CURSOR_BACKEND=sdk → CursorSdkAdapter');
   expect(sdk.name === 'cursor-sdk', 'SDK adapter name === cursor-sdk');
   expect(typeof sdk.runDirect === 'function', 'SDK adapter 实现 runDirect');
-  expect(typeof (cli as { runDirect?: unknown }).runDirect === 'undefined', 'CLI adapter 不实现 runDirect');
+  expect(
+    typeof (cli as { runDirect?: unknown }).runDirect === 'undefined',
+    'CLI adapter 不实现 runDirect',
+  );
 
   if (orig === undefined) delete process.env.SLARK_CURSOR_BACKEND;
   else process.env.SLARK_CURSOR_BACKEND = orig;
+
+  const codex = createCodexAdapter();
+  expect(codex instanceof CodexAdapter, 'createCodexAdapter() → CodexAdapter');
+  expect(codex.name === 'codex', 'Codex adapter name === codex');
+  expect(typeof codex.checkInstallation === 'function', 'Codex adapter 实现 checkInstallation');
 }
 
 console.log('\n2. CursorSdkAdapter checkInstallation');

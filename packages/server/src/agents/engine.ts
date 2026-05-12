@@ -35,7 +35,7 @@ import { buildContext } from './context-builder.js';
 import { ActivityRecorder } from './activity-recorder.js';
 import { concurrencyQueue } from './queue.js';
 import { runWithAdapter } from './runner.js';
-import { createCursorAdapter } from './adapter-factory.js';
+import { createAdapterForRuntime } from './adapter-factory.js';
 import type { CLIAdapter, CLIEvent } from './types.js';
 
 // Sprint 3 CP3：活跃 agent_runs 的 AbortController，支持 /abort 与 workflow override 时
@@ -64,18 +64,10 @@ export function abortChannelAgentRuns(db: Database, channelId: string): number {
   return count;
 }
 
-// Runtime 注册表：MVP 只实装 cursor。
-//
-// Sprint 4 ext (S-1)：cursor 后端可选 spawn cursor-agent 子进程（默认）/ 直接走 @cursor/sdk。
-// 实际 adapter 选择由 createCursorAdapter() 根据 SLARK_CURSOR_BACKEND 决定，两条路径都满足
-// CLIAdapter 契约（前者用 buildCommand+parseLine，后者用 runDirect），上层 runWithAdapter 自动 dispatch。
-const ADAPTERS: Partial<Record<Runtime, () => CLIAdapter>> = {
-  cursor: createCursorAdapter,
-};
-
+// Runtime registry. Cursor can use either cursor-agent (default) or @cursor/sdk;
+// Codex uses the local `codex exec --json` CLI path.
 export function getAdapterFor(runtime: Runtime): CLIAdapter | null {
-  const factory = ADAPTERS[runtime];
-  return factory ? factory() : null;
+  return createAdapterForRuntime(runtime);
 }
 
 export interface TriggerContext {

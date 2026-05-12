@@ -15,10 +15,22 @@
 
 import { CursorAdapter } from './cursor-adapter.js';
 import { CursorSdkAdapter } from './cursor-sdk-adapter.js';
+import { CodexAdapter } from './codex-adapter.js';
+import type { Runtime } from '@slark/shared';
 import type { CLIAdapter } from './types.js';
 
 export function createCursorAdapter(): CLIAdapter {
   const backend = (process.env.SLARK_CURSOR_BACKEND ?? 'cli').toLowerCase();
   if (backend === 'sdk') return new CursorSdkAdapter();
   return new CursorAdapter();
+}
+
+export function createCodexAdapter(): CLIAdapter {
+  return new CodexAdapter();
+}
+
+export function createAdapterForRuntime(runtime: Runtime): CLIAdapter | null {
+  if (runtime === 'cursor') return createCursorAdapter();
+  if (runtime === 'codex') return createCodexAdapter();
+  return null;
 }
