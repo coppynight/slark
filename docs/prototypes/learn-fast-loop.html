@@ -1,0 +1,3185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Slark</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..600,0..100&family=Geist:wght@300..700&family=Geist+Mono:wght@300..600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ──────────  Tokens  ────────── */
+      :root {
+        --bg:           #f4efe3;
+        --surface:      #fbf8ef;
+        --surface-soft: #f8f3e6;
+        --surface-deep: #ece4d0;
+        --ink:          #1a1a1a;
+        --ink-soft:     #3d3d3a;
+        --ink-faded:    #8a8276;
+        --rule:         #d8cfb9;
+        --rule-soft:    #e8e0cc;
+        --accent:       #c8553d;
+        --accent-deep:  #a13f2c;
+        --accent-soft:  #f4d4a8;
+        --accent-glow:  rgba(200, 85, 61, 0.14);
+        --success:      #5c7a5c;
+        --thinking:     #b48a3a;
+        --shadow-sm:    0 1px 0 rgba(26, 26, 26, 0.04), 0 2px 6px rgba(26, 26, 26, 0.04);
+        --shadow-md:    0 1px 0 rgba(26, 26, 26, 0.05), 0 6px 16px rgba(26, 26, 26, 0.06);
+        --shadow-lg:    0 1px 0 rgba(26, 26, 26, 0.08), 0 16px 48px rgba(26, 26, 26, 0.14);
+
+        --serif: 'Fraunces', 'Times New Roman', serif;
+        --sans:  'Geist', system-ui, -apple-system, sans-serif;
+        --mono:  'Geist Mono', 'SF Mono', Menlo, monospace;
+
+        --rad-sm: 4px;
+        --rad-md: 6px;
+        --rad-lg: 10px;
+
+        --side-w: 248px;
+        --rail-w: 360px;
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box; margin: 0; padding: 0;
+      }
+
+      html, body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 13.5px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: 'ss01', 'ss02';
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* Subtle paper grain across whole app */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1000;
+        opacity: 0.35;
+        mix-blend-mode: multiply;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      }
+
+      button, input, textarea {
+        font: inherit;
+        color: inherit;
+        background: none;
+        border: 0;
+      }
+      button { cursor: pointer; }
+      a { color: inherit; text-decoration: none; }
+      ::selection { background: var(--accent); color: var(--surface); }
+
+      /* ──────────  App shell  ────────── */
+      .app {
+        display: grid;
+        grid-template-columns: var(--side-w) minmax(0, 1fr) 0;
+        height: 100vh;
+        transition: grid-template-columns 0.36s cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+
+      .app[data-rail='true'] {
+        grid-template-columns: var(--side-w) minmax(0, 1fr) var(--rail-w);
+      }
+
+      /* ──────────  Sidebar  ────────── */
+      .sidebar {
+        background: var(--surface-soft);
+        border-right: 1px solid var(--rule);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .sidebar-head {
+        padding: 16px 18px 14px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .brand-mark {
+        font-family: var(--serif);
+        font-weight: 460;
+        font-size: 22px;
+        font-variation-settings: 'opsz' 144, 'SOFT' 30;
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .brand-mark .dot { color: var(--accent); }
+
+      .brand-tag {
+        font-family: var(--mono);
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--ink-faded);
+      }
+
+      .project-switch {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: var(--rad-md);
+        cursor: pointer;
+        transition: 0.15s ease;
+      }
+      .project-switch:hover { border-color: var(--ink-faded); }
+
+      .project-switch[data-empty='true'] {
+        color: var(--ink-faded);
+        font-style: italic;
+      }
+
+      .proj-mark {
+        width: 22px; height: 22px;
+        border-radius: var(--rad-sm);
+        display: grid; place-items: center;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 12px;
+        color: var(--surface);
+        background: var(--accent);
+        flex-shrink: 0;
+      }
+
+      .proj-name {
+        flex: 1;
+        font-weight: 500;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .proj-caret {
+        color: var(--ink-faded);
+        flex-shrink: 0;
+      }
+
+      .sidebar-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 8px 16px;
+      }
+
+      .nav-section {
+        padding: 14px 10px 6px;
+      }
+
+      .nav-section-title {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--ink-faded);
+        margin-bottom: 8px;
+        padding: 0 2px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .nav-section-title .add {
+        cursor: pointer;
+        color: var(--ink-faded);
+        font-size: 12px;
+        line-height: 1;
+        padding: 2px 4px;
+        border-radius: var(--rad-sm);
+        transition: 0.15s ease;
+      }
+      .nav-section-title .add:hover {
+        background: var(--surface-deep);
+        color: var(--ink);
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        border-radius: var(--rad-sm);
+        font-size: 13px;
+        color: var(--ink-soft);
+        cursor: pointer;
+        position: relative;
+        transition: 0.12s ease;
+      }
+      .nav-item:hover { background: var(--surface-deep); color: var(--ink); }
+      .nav-item[data-active='true'] {
+        background: var(--ink);
+        color: var(--surface);
+      }
+
+      .nav-item .hash {
+        font-family: var(--mono);
+        color: var(--ink-faded);
+        font-size: 13px;
+      }
+      .nav-item[data-active='true'] .hash { color: var(--surface-soft); opacity: 0.7; }
+
+      .nav-item .label { flex: 1; }
+
+      .nav-item .badge {
+        font-family: var(--mono);
+        font-size: 10px;
+        background: var(--accent);
+        color: var(--surface);
+        padding: 1px 6px;
+        border-radius: 999px;
+      }
+      .nav-item[data-active='true'] .badge {
+        background: var(--surface);
+        color: var(--ink);
+      }
+
+      .nav-item-icon {
+        width: 14px; height: 14px;
+        flex-shrink: 0;
+      }
+
+      /* Agents in sidebar */
+      .agents-list {
+        padding: 0 2px;
+      }
+
+      .agent-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        border-radius: var(--rad-sm);
+        cursor: pointer;
+        transition: 0.12s ease;
+      }
+      .agent-item:hover { background: var(--surface-deep); }
+
+      .agent-avatar {
+        width: 24px; height: 24px;
+        border-radius: 50%;
+        display: grid; place-items: center;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 12px;
+        color: var(--surface);
+        flex-shrink: 0;
+        position: relative;
+      }
+      .agent-avatar[data-color='clay']  { background: var(--accent); }
+      .agent-avatar[data-color='moss']  { background: var(--success); }
+      .agent-avatar[data-color='ochre'] { background: #b48a3a; }
+      .agent-avatar[data-color='ink']   { background: var(--ink); }
+
+      .agent-avatar.with-status::after {
+        content: '';
+        position: absolute;
+        right: -1px; bottom: -1px;
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--ink-faded);
+        border: 1.5px solid var(--surface-soft);
+      }
+      .agent-avatar.with-status[data-status='idle']::after     { background: var(--success); }
+      .agent-avatar.with-status[data-status='thinking']::after { background: var(--thinking); animation: pulse 1.4s ease-in-out infinite; }
+      .agent-avatar.with-status[data-status='working']::after  { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+      .agent-avatar.with-status[data-status='error']::after    { background: var(--accent); border-color: var(--ink); border-width: 2px; }
+      .agent-avatar.with-status[data-status='stopped']::after  { background: var(--ink-faded); }
+
+      .agent-name { flex: 1; font-size: 13px; color: var(--ink-soft); }
+      .agent-status-text {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+      }
+      .agent-status-text[data-state='working'] { color: var(--accent); }
+
+      /* Status legend (visible in spec mode) */
+      .status-legend {
+        margin: 14px 10px 0;
+        padding: 10px 12px;
+        border: 1px dashed var(--rule);
+        border-radius: var(--rad-sm);
+        background: var(--surface);
+      }
+      .status-legend-title {
+        font-family: var(--mono);
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--accent);
+        margin-bottom: 8px;
+      }
+      .status-legend-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 3px 0;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-soft);
+      }
+      .status-legend-row .agent-avatar {
+        width: 16px; height: 16px;
+        font-size: 9px;
+        background: var(--surface-deep);
+        color: var(--ink-faded);
+      }
+
+      /* Spec-mode reveal: things that only show when the user toggles "Spec mode" */
+      [data-spec-only='true'] {
+        display: none;
+      }
+      .app[data-spec='true'] [data-spec-only='true'] {
+        display: block;
+      }
+      .app[data-spec='true'] [data-spec-only='true'].inline {
+        display: inline-flex;
+      }
+      .spec-tag {
+        display: none;
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--ink-faded);
+        opacity: 0.7;
+        padding: 1px 5px;
+        background: var(--surface);
+        border: 1px dashed var(--rule);
+        border-radius: 2px;
+        white-space: nowrap;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .app[data-spec='true'] .spec-tag {
+        display: inline-block;
+      }
+      .nav-item .spec-tag { color: var(--accent); }
+      .nav-item[data-active='true'] .spec-tag {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.2);
+        color: var(--accent-soft);
+      }
+
+      /* Spec-mode pin: small floating annotation bubble per UI region */
+      .spec-pin {
+        display: none;
+        position: absolute;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--accent);
+        background: var(--surface);
+        border: 1px dashed var(--accent);
+        padding: 2px 6px;
+        border-radius: 2px;
+        line-height: 1.3;
+        z-index: 30;
+        max-width: 280px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+      }
+      .app[data-spec='true'] .spec-pin {
+        display: inline-block;
+      }
+      .app[data-spec='true'] .spec-pin[data-anchor='top-right'] {
+        display: inline-block;
+        position: absolute;
+      }
+      .spec-pin-inline {
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+        margin-right: 4px;
+      }
+      .spec-pin[data-anchor='top-right'] {
+        top: -10px;
+        right: 8px;
+      }
+      .spec-pin[data-anchor='top-left'] {
+        top: -10px;
+        left: 8px;
+      }
+      .spec-pin[data-anchor='bottom-right'] {
+        bottom: -10px;
+        right: 8px;
+      }
+
+      /* Spec mode toggle (pinned bottom-right) */
+      .spec-toggle {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--ink-soft);
+        cursor: pointer;
+        box-shadow: var(--shadow-md);
+        z-index: 150;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: 0.15s ease;
+      }
+      .spec-toggle:hover { border-color: var(--accent); color: var(--accent); }
+      .spec-toggle .dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--ink-faded);
+      }
+      .app[data-spec='true'] ~ .spec-toggle {
+        background: var(--ink);
+        color: var(--surface);
+        border-color: var(--ink);
+      }
+      .app[data-spec='true'] ~ .spec-toggle .dot {
+        background: var(--accent-soft);
+        box-shadow: 0 0 0 3px rgba(244, 212, 168, 0.3);
+      }
+
+      /* Sidebar footer (user) */
+      .sidebar-foot {
+        padding: 12px 14px;
+        border-top: 1px solid var(--rule);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+      }
+      .sidebar-foot .you-mark {
+        width: 24px; height: 24px;
+        border-radius: 50%;
+        background: var(--surface-deep);
+        border: 1px solid var(--rule);
+        display: grid; place-items: center;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-soft);
+        flex-shrink: 0;
+      }
+      .sidebar-foot .you-name { flex: 1; color: var(--ink-soft); }
+      .sidebar-foot .reset {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+        padding: 4px 8px;
+        border-radius: var(--rad-sm);
+        transition: 0.15s ease;
+      }
+      .sidebar-foot .reset:hover { background: var(--surface-deep); color: var(--accent); }
+
+      /* ──────────  Main area  ────────── */
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        background: var(--bg);
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Welcome empty state */
+      .welcome {
+        flex: 1;
+        display: grid;
+        place-items: center;
+        padding: 40px;
+      }
+      .welcome[data-hidden='true'] { display: none; }
+
+      .welcome-card {
+        max-width: 520px;
+        text-align: center;
+      }
+
+      .welcome-mark {
+        margin: 0 auto 28px;
+        width: 64px; height: 64px;
+        border-radius: 50%;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        display: grid; place-items: center;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 30px;
+        color: var(--accent);
+        font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      }
+
+      .welcome-title {
+        font-family: var(--serif);
+        font-size: 36px;
+        font-weight: 380;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin-bottom: 14px;
+        font-variation-settings: 'opsz' 144, 'SOFT' 50;
+      }
+      .welcome-title em {
+        font-style: italic;
+        color: var(--accent);
+        font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      }
+
+      .welcome-sub {
+        font-size: 14px;
+        color: var(--ink-soft);
+        line-height: 1.55;
+        max-width: 44ch;
+        margin: 0 auto 28px;
+      }
+
+      .welcome-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--ink);
+        color: var(--surface);
+        padding: 13px 22px;
+        border-radius: var(--rad-md);
+        font-weight: 500;
+        font-size: 13.5px;
+        transition: 0.18s ease;
+      }
+      .welcome-cta:hover { background: var(--accent); transform: translateY(-1px); }
+
+      .welcome-meta {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+        gap: 28px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--ink-faded);
+      }
+      .welcome-meta .v { color: var(--success); margin-right: 6px; }
+
+      /* Backend status pill on welcome */
+      .backend-status {
+        margin: 24px auto 0;
+        max-width: 520px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: var(--rad-md);
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .backend-status .bs-dot {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .backend-status .bs-dot[data-state='ok']    { background: var(--success); box-shadow: 0 0 0 3px rgba(92,122,92,0.18); }
+      .backend-status .bs-dot[data-state='warn']  { background: var(--thinking); }
+      .backend-status .bs-dot[data-state='error'] { background: var(--accent); }
+      .backend-status .bs-text { flex: 1; text-align: left; }
+      .backend-status code {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        background: var(--surface-deep);
+        padding: 1px 5px;
+        border-radius: 2px;
+      }
+      .backend-status .bs-link {
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+      }
+      .backend-status .bs-link:hover { text-decoration: underline; }
+
+      /* Channel view */
+      .channel {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .channel[data-active='true'] { display: flex; }
+
+      .channel-head {
+        padding: 16px 28px;
+        border-bottom: 1px solid var(--rule);
+        background: var(--surface-soft);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-shrink: 0;
+      }
+
+      .channel-name {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+      }
+
+      .channel-hash {
+        font-family: var(--mono);
+        color: var(--ink-faded);
+        font-size: 17px;
+        font-weight: 400;
+      }
+
+      .channel-title {
+        font-family: var(--serif);
+        font-size: 19px;
+        font-weight: 460;
+        letter-spacing: -0.005em;
+        font-variation-settings: 'opsz' 30;
+      }
+
+      .channel-meta {
+        margin-left: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+      }
+      .channel-meta::before {
+        content: '·';
+        margin-right: 4px;
+      }
+
+      .channel-presence {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .channel-presence .agent-avatar {
+        width: 22px; height: 22px;
+        font-size: 11px;
+        margin-left: -6px;
+        border: 1.5px solid var(--surface-soft);
+      }
+      .channel-presence .count {
+        margin-left: 8px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-faded);
+      }
+
+      .channel-actions {
+        display: flex;
+        gap: 4px;
+      }
+      .channel-actions button {
+        padding: 6px 8px;
+        color: var(--ink-faded);
+        border-radius: var(--rad-sm);
+        transition: 0.15s ease;
+      }
+      .channel-actions button:hover {
+        background: var(--surface-deep);
+        color: var(--ink);
+      }
+
+      /* Workflow run bar */
+      .workflow-bar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--rule);
+        padding: 12px 28px;
+        display: none;
+      }
+      .workflow-bar[data-active='true'] { display: block; }
+
+      .wf-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .wf-icon {
+        width: 18px; height: 18px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: grid; place-items: center;
+        color: var(--surface);
+        font-family: var(--serif);
+        font-size: 11px;
+        font-style: italic;
+        flex-shrink: 0;
+      }
+
+      .wf-name {
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-soft);
+      }
+      .wf-name strong { color: var(--ink); font-weight: 500; }
+
+      .wf-elapsed {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--ink-faded);
+      }
+
+      .wf-actions {
+        display: flex;
+        gap: 4px;
+      }
+      .wf-actions button {
+        padding: 4px 8px;
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--ink-faded);
+        border-radius: var(--rad-sm);
+        transition: 0.15s ease;
+      }
+      .wf-actions button:hover { background: var(--surface-deep); color: var(--ink); }
+
+      .wf-track {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 6px;
+      }
+
+      .wf-step {
+        flex: 1;
+        height: 5px;
+        background: var(--rule);
+        border-radius: 2px;
+        position: relative;
+        overflow: hidden;
+      }
+      .wf-step[data-state='done']   { background: var(--success); }
+      .wf-step[data-state='active'] { background: var(--accent); }
+      .wf-step[data-state='active']::after {
+        content: '';
+        position: absolute; inset: 0;
+        background: linear-gradient(90deg, transparent 0, rgba(255,255,255,0.55) 50%, transparent 100%);
+        animation: shimmer 1.4s linear infinite;
+      }
+
+      @keyframes shimmer {
+        from { transform: translateX(-100%); }
+        to   { transform: translateX(100%); }
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%      { opacity: 0.55; transform: scale(0.85); }
+      }
+
+      .wf-labels {
+        display: flex;
+        gap: 4px;
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--ink-faded);
+      }
+      .wf-labels span { flex: 1; }
+      .wf-labels span[data-state='done']   { color: var(--success); }
+      .wf-labels span[data-state='active'] { color: var(--accent); }
+
+      /* Thread */
+      .thread-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px 28px 8px;
+      }
+
+      .thread {
+        max-width: 880px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .day-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 16px 0 8px;
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--ink-faded);
+      }
+      .day-divider::before, .day-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--rule-soft);
+      }
+
+      /* Message — Slack-like density */
+      .msg {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: 12px;
+        padding: 8px 12px 8px 12px;
+        position: relative;
+        border-radius: var(--rad-md);
+        transition: background 0.12s ease;
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      .msg[data-shown='true'] {
+        opacity: 1;
+        transform: translateY(0);
+        transition: 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+
+      .msg:hover { background: var(--surface-soft); }
+
+      .msg .msg-avatar {
+        align-self: start;
+        margin-top: 2px;
+      }
+      .msg .msg-avatar .agent-avatar {
+        width: 32px; height: 32px;
+        font-size: 14px;
+      }
+
+      .msg-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 2px;
+      }
+      .msg-name {
+        font-family: var(--serif);
+        font-size: 14.5px;
+        font-weight: 500;
+        letter-spacing: -0.005em;
+      }
+      .msg-time {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--ink-faded);
+      }
+      .msg-step {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+        margin-left: auto;
+      }
+
+      .msg-body {
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: var(--ink-soft);
+      }
+      .msg-body p + p { margin-top: 8px; }
+      .msg-body code {
+        font-family: var(--mono);
+        font-size: 12px;
+        background: var(--surface-deep);
+        padding: 1px 5px;
+        border-radius: 2px;
+        color: var(--ink);
+      }
+      .msg-body strong { color: var(--ink); font-weight: 500; }
+
+      /* Tool calls */
+      .msg-tools {
+        margin-top: 10px;
+        background: var(--surface-soft);
+        border: 1px solid var(--rule-soft);
+        border-radius: var(--rad-md);
+        padding: 8px 12px;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      .tool-line {
+        display: flex;
+        gap: 10px;
+        padding: 2px 0;
+        color: var(--ink-soft);
+      }
+      .tool-line .verb {
+        color: var(--accent);
+        font-weight: 500;
+        min-width: 36px;
+      }
+
+      /* System line (workflow_started, etc.) */
+      .sys-line {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        padding: 4px 12px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--ink-faded);
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      .sys-line[data-shown='true'],
+      .sys-line {
+        animation: lineIn 0.4s ease forwards;
+      }
+      .sys-line .sys-time {
+        flex-shrink: 0;
+        font-size: 10.5px;
+      }
+      .sys-line .sys-body { flex: 1; color: var(--ink-soft); }
+      .sys-line .sys-mark { color: var(--accent); margin-right: 4px; }
+      .sys-line .sys-meta {
+        margin-left: 10px;
+        font-size: 10.5px;
+        color: var(--ink-faded);
+      }
+      .sys-line strong { color: var(--ink); font-weight: 500; }
+      .sys-line .spec-tag { margin-left: auto; }
+
+      /* Approval card — replaces old text "/approve" hint, mirrors ApprovalCard.tsx */
+      .approval-card {
+        max-width: 680px;
+        margin: 6px 12px 6px 60px;
+        background: var(--accent-glow);
+        border: 1px solid var(--accent);
+        border-radius: var(--rad-md);
+        padding: 14px 16px;
+        position: relative;
+      }
+      .approval-card::before {
+        content: '';
+        position: absolute;
+        left: -3px; top: 12px; bottom: 12px;
+        width: 3px;
+        background: var(--accent);
+        border-radius: 2px;
+      }
+      .ac-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .ac-icon {
+        font-size: 16px;
+        color: var(--accent);
+      }
+      .ac-body { flex: 1; }
+      .ac-title {
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--ink);
+      }
+      .ac-sub {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-soft);
+        margin-top: 2px;
+      }
+      .ac-step {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .ac-prev {
+        margin-bottom: 10px;
+      }
+      .ac-prev summary {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-soft);
+        cursor: pointer;
+        list-style: none;
+      }
+      .ac-prev summary:hover { color: var(--ink); }
+      .ac-prev summary::-webkit-details-marker { display: none; }
+      .ac-prev pre {
+        margin-top: 6px;
+        padding: 10px 12px;
+        background: var(--surface);
+        border: 1px solid var(--rule-soft);
+        border-radius: var(--rad-sm);
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--ink-soft);
+        white-space: pre-wrap;
+        line-height: 1.55;
+      }
+      .ac-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .ac-btn {
+        flex: 1;
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        padding: 8px 12px;
+        border-radius: var(--rad-sm);
+        border: 1px solid var(--rule);
+        background: var(--surface);
+        color: var(--ink-soft);
+        transition: 0.15s ease;
+      }
+      .ac-btn:hover { border-color: var(--ink); color: var(--ink); }
+      .ac-btn.primary {
+        background: var(--success);
+        color: var(--surface);
+        border-color: var(--success);
+      }
+      .ac-btn.primary:hover {
+        background: #4d6850;
+        border-color: #4d6850;
+      }
+      .ac-btn.ghost {
+        flex: 0 0 auto;
+        background: transparent;
+        border-color: transparent;
+        color: var(--ink-faded);
+        text-decoration: underline;
+      }
+      .approval-card[data-state='approved'] {
+        opacity: 0.55;
+        background: rgba(92,122,92,0.1);
+        border-color: rgba(92,122,92,0.3);
+      }
+      .approval-card[data-state='approved'] .ac-actions {
+        display: none;
+      }
+      .approval-card[data-state='approved']::after {
+        content: '✓ Approved';
+        position: absolute;
+        top: 14px;
+        right: 16px;
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--success);
+        font-weight: 500;
+      }
+
+      /* Hover action chip — Slack-like floating react bar */
+      .msg-actions {
+        position: absolute;
+        top: -10px;
+        right: 14px;
+        display: flex;
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        box-shadow: var(--shadow-md);
+        opacity: 0;
+        transform: translateY(4px);
+        pointer-events: none;
+        transition: 0.15s ease;
+        z-index: 5;
+      }
+      .msg:hover .msg-actions {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+
+      .ma-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 9px;
+        color: var(--ink-faded);
+        font-size: 12px;
+        transition: 0.12s ease;
+      }
+      .ma-btn:hover {
+        background: var(--surface-soft);
+        color: var(--ink);
+      }
+      .ma-btn[data-active='up']   { color: var(--success); background: rgba(92,122,92,0.1); }
+      .ma-btn[data-active='down'] { color: var(--accent);  background: var(--accent-glow); }
+
+      .ma-btn svg {
+        width: 13px; height: 13px;
+      }
+
+      .ma-divider {
+        width: 1px; height: 16px;
+        background: var(--rule);
+      }
+
+      .ma-coach {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+        font-weight: 500;
+        padding: 6px 10px;
+      }
+      .ma-coach:hover { background: var(--accent); color: var(--surface); }
+
+      /* Inline reaction summary (after user reacts) */
+      .msg-reactions {
+        margin-top: 8px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .reaction-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: var(--surface-soft);
+        border: 1px solid var(--rule);
+        color: var(--ink-soft);
+      }
+      .reaction-chip[data-tone='down'] {
+        background: var(--accent-glow);
+        border-color: rgba(200,85,61,0.3);
+        color: var(--accent);
+      }
+      .reaction-chip[data-tone='up'] {
+        background: rgba(92,122,92,0.12);
+        border-color: rgba(92,122,92,0.3);
+        color: var(--success);
+      }
+
+      /* Reason picker popover */
+      .reason-pop {
+        position: absolute;
+        top: 28px;
+        right: 18px;
+        width: 320px;
+        background: var(--surface);
+        border: 1px solid var(--accent);
+        border-radius: var(--rad-md);
+        box-shadow: var(--shadow-lg);
+        padding: 14px 14px 12px;
+        z-index: 20;
+        display: none;
+      }
+      .reason-pop[data-open='true'] {
+        display: block;
+        animation: rise 0.2s ease;
+      }
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .reason-pop::before {
+        content: '';
+        position: absolute;
+        top: -6px; right: 60px;
+        width: 10px; height: 10px;
+        background: var(--surface);
+        border-top: 1px solid var(--accent);
+        border-left: 1px solid var(--accent);
+        transform: rotate(45deg);
+      }
+
+      .reason-pop-head {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--accent);
+        margin-bottom: 10px;
+      }
+
+      .reason-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+
+      .reason-tag {
+        font-size: 11.5px;
+        padding: 5px 10px;
+        background: var(--surface-soft);
+        border: 1px solid var(--rule);
+        color: var(--ink-soft);
+        border-radius: 999px;
+        transition: 0.12s ease;
+      }
+      .reason-tag:hover { border-color: var(--accent); color: var(--accent); }
+      .reason-tag[data-selected='true'] {
+        background: var(--accent);
+        color: var(--surface);
+        border-color: var(--accent);
+      }
+
+      .reason-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--rule);
+      }
+      .reason-foot .hint {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-faded);
+      }
+      .reason-submit {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .reason-cancel {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+        margin-right: 12px;
+      }
+
+      /* Composer */
+      .composer-wrap {
+        padding: 12px 28px 20px;
+        background: var(--bg);
+        border-top: 1px solid var(--rule);
+        flex-shrink: 0;
+      }
+
+      .composer {
+        max-width: 880px;
+        margin: 0 auto;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: var(--rad-lg);
+        padding: 10px 14px;
+        transition: 0.15s ease;
+      }
+      .composer:focus-within {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+
+      .composer-input {
+        width: 100%;
+        background: transparent;
+        outline: none;
+        font-size: 14px;
+        padding: 4px 0;
+        color: var(--ink);
+      }
+      .composer-input::placeholder {
+        color: var(--ink-faded);
+      }
+
+      .composer-foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-top: 6px;
+        border-top: 1px solid var(--rule-soft);
+        margin-top: 6px;
+      }
+      .composer-mini {
+        padding: 4px 8px;
+        color: var(--ink-faded);
+        font-size: 12px;
+        border-radius: var(--rad-sm);
+        cursor: pointer;
+        transition: 0.12s ease;
+      }
+      .composer-mini:hover { background: var(--surface-soft); color: var(--ink); }
+
+      .composer-task {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--ink-faded);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: var(--rad-sm);
+      }
+      .composer-task input { width: 12px; height: 12px; }
+      .composer-task:hover { color: var(--ink-soft); background: var(--surface-soft); }
+
+      .composer-send {
+        margin-left: auto;
+        background: var(--ink);
+        color: var(--surface);
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        padding: 6px 14px;
+        border-radius: var(--rad-sm);
+        transition: 0.15s ease;
+      }
+      .composer-send:hover { background: var(--accent); }
+
+      /* ──────────  Right rail (contextual)  ────────── */
+      .rail {
+        background: var(--surface-soft);
+        border-left: 1px solid var(--rule);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .rail-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--rule);
+        flex-shrink: 0;
+      }
+      .rail-eyebrow {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--accent);
+      }
+      .rail-title {
+        font-family: var(--serif);
+        font-size: 16px;
+        font-weight: 500;
+        flex: 1;
+      }
+      .rail-close {
+        padding: 4px 8px;
+        color: var(--ink-faded);
+        font-size: 11px;
+        font-family: var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        border-radius: var(--rad-sm);
+      }
+      .rail-close:hover {
+        background: var(--surface-deep);
+        color: var(--ink);
+      }
+
+      .rail-body {
+        flex: 1;
+        overflow-y: auto;
+      }
+
+      /* Rail panels */
+      .rail-panel { display: none; padding: 18px; }
+      .rail-panel[data-active='true'] { display: block; animation: rise 0.3s ease; }
+
+      /* Coach panel */
+      .coach-greet {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .coach-mark {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--surface);
+        display: grid; place-items: center;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .coach-meta {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--ink-faded);
+      }
+      .coach-meta strong { color: var(--accent); font-weight: 500; }
+
+      .coach-body {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-soft);
+        margin-bottom: 14px;
+      }
+      .coach-body p + p { margin-top: 8px; }
+      .coach-body strong { color: var(--ink); font-weight: 500; }
+
+      .diff-block {
+        background: var(--surface);
+        border: 1px solid var(--rule-soft);
+        border-radius: var(--rad-md);
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .diff-line {
+        padding: 8px 12px;
+        display: flex;
+        gap: 10px;
+      }
+      .diff-line.before {
+        background: rgba(200,85,61,0.06);
+        color: var(--ink-soft);
+        text-decoration: line-through;
+        text-decoration-color: rgba(200,85,61,0.5);
+      }
+      .diff-line.after {
+        background: rgba(92,122,92,0.07);
+        color: var(--ink);
+      }
+      .diff-line .sign { font-weight: 500; flex-shrink: 0; width: 12px; }
+      .diff-line.before .sign { color: var(--accent); }
+      .diff-line.after  .sign { color: var(--success); }
+
+      .coach-meta-line {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--ink-faded);
+      }
+      .coach-meta-line .key {
+        color: var(--ink-soft);
+        font-weight: 500;
+      }
+
+      .coach-actions {
+        display: flex;
+        gap: 8px;
+        padding: 14px 18px;
+        border-top: 1px solid var(--rule);
+        background: var(--surface-soft);
+      }
+
+      .coach-action {
+        flex: 1;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        padding: 9px 12px;
+        border-radius: var(--rad-sm);
+        border: 1px solid var(--rule);
+        background: var(--surface);
+        color: var(--ink-soft);
+        transition: 0.15s ease;
+      }
+      .coach-action:hover { border-color: var(--ink); color: var(--ink); }
+      .coach-action.primary {
+        background: var(--ink);
+        color: var(--surface);
+        border-color: var(--ink);
+      }
+      .coach-action.primary:hover { background: var(--accent); border-color: var(--accent); }
+
+      /* Agent profile panel */
+      .ap-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--rule);
+        margin-bottom: 16px;
+      }
+      .ap-head .agent-avatar { width: 44px; height: 44px; font-size: 20px; }
+      .ap-name {
+        font-family: var(--serif);
+        font-size: 22px;
+        font-weight: 460;
+        line-height: 1;
+      }
+      .ap-role {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--ink-faded);
+        margin-top: 4px;
+      }
+
+      .ap-section-title {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--ink-faded);
+        margin: 18px 0 10px;
+      }
+      .ap-section-title:first-of-type { margin-top: 0; }
+
+      .ap-desc {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-soft);
+        background: var(--surface);
+        border: 1px solid var(--rule-soft);
+        border-radius: var(--rad-md);
+        padding: 12px 14px;
+      }
+      .ap-desc .new {
+        background: rgba(92,122,92,0.16);
+        padding: 0 4px;
+        color: var(--ink);
+        border-radius: 2px;
+      }
+
+      .ap-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .ap-stat {
+        background: var(--surface);
+        border: 1px solid var(--rule-soft);
+        border-radius: var(--rad-md);
+        padding: 10px 12px;
+      }
+      .ap-stat .num {
+        font-family: var(--serif);
+        font-size: 22px;
+        font-weight: 460;
+        line-height: 1;
+        color: var(--accent);
+        font-variation-settings: 'opsz' 144, 'SOFT' 60;
+      }
+      .ap-stat .lbl {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+        margin-top: 6px;
+      }
+
+      .ap-timeline {
+        position: relative;
+        padding-left: 22px;
+      }
+      .ap-timeline::before {
+        content: '';
+        position: absolute;
+        left: 5px; top: 6px; bottom: 6px;
+        width: 1px;
+        background: var(--rule);
+      }
+      .tl-item {
+        position: relative;
+        padding-bottom: 14px;
+      }
+      .tl-item::before {
+        content: '';
+        position: absolute;
+        left: -19px; top: 6px;
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--surface);
+        border: 1.5px solid var(--accent);
+      }
+      .tl-item[data-kind='applied']::before { background: var(--accent); }
+      .tl-item[data-kind='just-now']::before {
+        background: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+
+      .tl-when {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+      }
+      .tl-text {
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--ink-soft);
+        margin-top: 2px;
+      }
+      .tl-text strong { color: var(--ink); font-weight: 500; }
+
+      /* ──────────  Modal (Create Project)  ────────── */
+      .modal-bg {
+        position: fixed;
+        inset: 0;
+        background: rgba(26, 26, 26, 0.4);
+        display: none;
+        place-items: center;
+        z-index: 100;
+        padding: 40px 20px;
+        backdrop-filter: blur(2px);
+      }
+      .modal-bg[data-open='true'] {
+        display: grid;
+        animation: fadeBg 0.25s ease;
+      }
+      @keyframes fadeBg {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: var(--rad-lg);
+        box-shadow: var(--shadow-lg);
+        max-width: 640px;
+        width: 100%;
+        overflow: hidden;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        animation: modalRise 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      @keyframes modalRise {
+        from { opacity: 0; transform: translateY(20px) scale(0.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      .modal-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--rule);
+      }
+      .modal-eyebrow {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--accent);
+      }
+      .modal-step {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-faded);
+        margin-left: auto;
+      }
+
+      .modal-body {
+        padding: 26px 28px;
+        overflow-y: auto;
+      }
+
+      .modal-stage { display: none; }
+      .modal-stage[data-active='true'] {
+        display: block;
+        animation: rise 0.35s ease;
+      }
+
+      .field-label {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--ink-faded);
+        margin-bottom: 8px;
+      }
+      .field-label .req { color: var(--accent); margin-left: 3px; }
+
+      .goal-input {
+        width: 100%;
+        font-family: var(--serif);
+        font-size: 22px;
+        line-height: 1.3;
+        background: transparent;
+        border: 0;
+        border-bottom: 1px solid var(--rule);
+        padding: 4px 0 12px;
+        color: var(--ink);
+        outline: none;
+        font-weight: 380;
+        letter-spacing: -0.005em;
+        font-variation-settings: 'opsz' 144, 'SOFT' 30;
+        transition: border-color 0.18s ease;
+      }
+      .goal-input:focus { border-bottom-color: var(--accent); }
+      .goal-input::placeholder { color: var(--ink-faded); font-style: italic; }
+
+      .goal-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-faded);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .ws-row {
+        margin-top: 22px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        background: var(--surface-soft);
+        border: 1px dashed var(--rule);
+        border-radius: var(--rad-md);
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .ws-row svg { color: var(--accent); flex-shrink: 0; }
+      .ws-row .path { flex: 1; }
+      .ws-row .change {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+        cursor: pointer;
+      }
+      .ws-row .change:hover { color: var(--accent); }
+
+      /* Advanced collapsible (preserves slug / display_name / team_rules) */
+      .advanced {
+        margin-top: 18px;
+        border-top: 1px solid var(--rule-soft);
+        padding-top: 14px;
+      }
+      .advanced summary {
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .advanced summary::-webkit-details-marker { display: none; }
+      .advanced summary:hover { color: var(--ink); }
+      .advanced .adv-caret {
+        display: inline-block;
+        transition: transform 0.15s ease;
+      }
+      .advanced[open] .adv-caret {
+        transform: rotate(90deg);
+        color: var(--accent);
+      }
+      .advanced .adv-hint {
+        font-family: var(--sans);
+        font-size: 11px;
+        text-transform: none;
+        letter-spacing: 0;
+        color: var(--ink-faded);
+        font-style: italic;
+      }
+      .adv-body {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .adv-field .field-label .opt {
+        margin-left: 4px;
+        color: var(--ink-faded);
+        font-style: italic;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .adv-input {
+        width: 100%;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        padding: 8px 10px;
+        background: var(--surface-soft);
+        border: 1px solid var(--rule);
+        border-radius: var(--rad-sm);
+        outline: none;
+        color: var(--ink);
+        resize: none;
+        transition: border-color 0.15s ease;
+      }
+      .adv-input:focus { border-color: var(--accent); }
+      .adv-meta {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-faded);
+        margin-top: 4px;
+      }
+      .adv-meta.user-edited { color: var(--accent); }
+
+      .modal-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 22px;
+        border-top: 1px solid var(--rule);
+        background: var(--surface-soft);
+      }
+
+      .ttfr-mini {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--ink-faded);
+      }
+      .ttfr-mini .dot {
+        width: 5px; height: 5px;
+        border-radius: 50%;
+        background: var(--success);
+        box-shadow: 0 0 0 3px rgba(92,122,92,0.18);
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: var(--rad-md);
+        font-weight: 500;
+        font-size: 13px;
+        transition: 0.18s ease;
+      }
+      .btn-primary {
+        background: var(--ink);
+        color: var(--surface);
+      }
+      .btn-primary:hover { background: var(--accent); transform: translateY(-1px); }
+      .btn-ghost { color: var(--ink-soft); }
+      .btn-ghost:hover { color: var(--ink); }
+
+      /* Building stage inside modal */
+      .building-stream {
+        background: var(--surface-soft);
+        border: 1px solid var(--rule);
+        border-radius: var(--rad-md);
+        padding: 14px 16px;
+        margin-bottom: 18px;
+      }
+
+      .build-line {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 5px 0;
+        opacity: 0;
+        transform: translateY(4px);
+        animation: lineIn 0.45s ease forwards;
+      }
+      .build-line:nth-child(1) { animation-delay: 0.1s; }
+      .build-line:nth-child(2) { animation-delay: 0.5s; }
+      .build-line:nth-child(3) { animation-delay: 1.0s; }
+      .build-line:nth-child(4) { animation-delay: 1.5s; }
+      .build-line:nth-child(5) { animation-delay: 2.0s; }
+      @keyframes lineIn { to { opacity: 1; transform: translateY(0); } }
+
+      .build-line .tick {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--ink-faded);
+        flex-shrink: 0;
+        padding-top: 2px;
+        min-width: 38px;
+      }
+      .build-line .body {
+        font-size: 13px;
+        color: var(--ink-soft);
+      }
+      .build-line .body em {
+        font-family: var(--mono);
+        font-style: normal;
+        font-size: 11.5px;
+        color: var(--ink);
+        background: var(--accent-soft);
+        padding: 1px 5px;
+        border-radius: 2px;
+      }
+      .build-line .body strong { color: var(--ink); font-weight: 500; }
+
+      .team-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+      }
+      .team-card {
+        background: var(--surface-soft);
+        border: 1px solid var(--rule);
+        border-radius: var(--rad-md);
+        padding: 14px;
+        opacity: 0;
+        transform: translateY(8px);
+        animation: lineIn 0.5s 2.5s ease forwards;
+      }
+      .team-card:nth-child(2) { animation-delay: 2.7s; }
+      .team-card:nth-child(3) { animation-delay: 2.9s; }
+
+      .team-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .team-head .agent-avatar { width: 30px; height: 30px; font-size: 14px; }
+      .team-name {
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 460;
+      }
+      .team-role {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-faded);
+        margin-top: 2px;
+      }
+      .team-blurb {
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--ink-soft);
+        padding-top: 10px;
+        border-top: 1px solid var(--rule-soft);
+      }
+
+      /* ──────────  Toast  ────────── */
+      .toast {
+        position: fixed;
+        bottom: 22px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--ink);
+        color: var(--surface);
+        padding: 10px 18px;
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        border-radius: var(--rad-md);
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+        z-index: 200;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .toast[data-visible='true'] {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      .toast .accent { color: var(--accent-soft); }
+      .toast .spinner {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        border: 1.5px solid var(--surface);
+        border-top-color: transparent;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* Coach hint chip in stream (between messages) */
+      .stream-hint {
+        max-width: 880px;
+        margin: 8px auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: var(--accent-glow);
+        border-left: 2px solid var(--accent);
+        border-radius: 2px;
+        font-size: 12px;
+        color: var(--ink-soft);
+        opacity: 0;
+        transition: 0.3s ease;
+        max-height: 0;
+        overflow: hidden;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+      .stream-hint[data-visible='true'] {
+        opacity: 1;
+        max-height: 60px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+      .stream-hint .ic {
+        color: var(--accent);
+        flex-shrink: 0;
+      }
+      .stream-hint strong { color: var(--ink); font-weight: 500; }
+    </style>
+  </head>
+
+  <body>
+    <!-- ═══════════  APP SHELL  ═══════════ -->
+    <div class="app" id="app">
+      <!-- ─────  SIDEBAR  ───── -->
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <div class="brand">
+            <div class="brand-mark">slark<span class="dot">.</span></div>
+            <div class="brand-tag">v0.7</div>
+          </div>
+          <div class="project-switch" id="projSwitch" data-empty="true" onclick="openCreate()">
+            <div class="proj-mark" id="projMark" style="display:none">O</div>
+            <div class="proj-name" id="projName">No project · click to create</div>
+            <svg class="proj-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="sidebar-body" id="sidebarBody">
+          <!-- Empty state — shown only before project created -->
+          <div id="sidebarEmpty" style="padding: 32px 14px; text-align: center;">
+            <div style="font-family: var(--serif); font-size: 14px; font-style: italic; color: var(--ink-faded); line-height: 1.5;">
+              Channels, agents and tasks<br/>show up after you create<br/>your first project.
+            </div>
+          </div>
+
+          <!-- Populated nav — shown after project created -->
+          <div id="sidebarFull" style="display: none;">
+            <div class="nav-section">
+              <div class="nav-section-title">
+                Channels
+                <span class="add" title="Add channel">+</span>
+              </div>
+              <!-- spec: CreateProjectDialog only seeds #general by default; other channels are user-created -->
+              <div class="nav-item" data-active="true">
+                <span class="hash">#</span>
+                <span class="label">general</span>
+                <span class="spec-tag" title="data: GET /api/channels (per-project db) — seeded by CreateProjectDialog">channels.name</span>
+              </div>
+            </div>
+
+            <div class="nav-section">
+              <div class="nav-section-title">Direct</div>
+              <div class="nav-item">
+                <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M3 21l1.5-4.5A8.5 8.5 0 1 1 8 19.5L3 21z"/>
+                </svg>
+                <span class="label">Threads</span>
+              </div>
+              <div class="nav-item">
+                <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M22 12h-4l-3 9-6-18-3 9H2"/>
+                </svg>
+                <span class="label">Inbox</span>
+                <span class="badge" id="inboxBadge" style="display:none">1</span>
+              </div>
+              <div class="nav-item">
+                <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+                <span class="label">Tasks</span>
+                <span class="badge">4</span>
+              </div>
+            </div>
+
+            <div class="nav-section">
+              <div class="nav-section-title">
+                Agents
+                <span class="add" title="Add agent">+</span>
+              </div>
+              <!-- spec: AGENT_STATES = idle | thinking | working | error | stopped (constants.ts).
+                   Status derived per-channel from agent_runs, broadcast via WS agent_status event. -->
+              <div class="agents-list">
+                <div class="agent-item" onclick="openAgentProfile('Architect')">
+                  <div class="agent-avatar with-status" data-color="ochre" data-status="idle" id="agentAvatar-Architect">A</div>
+                  <span class="agent-name">Architect</span>
+                  <span class="agent-status-text" id="agentStatus-Architect">idle</span>
+                </div>
+                <div class="agent-item" onclick="openAgentProfile('Dev')">
+                  <div class="agent-avatar with-status" data-color="moss" data-status="idle" id="agentAvatar-Dev">D</div>
+                  <span class="agent-name">Dev</span>
+                  <span class="agent-status-text" id="agentStatus-Dev">idle</span>
+                </div>
+                <div class="agent-item" onclick="openAgentProfile('Reviewer')">
+                  <div class="agent-avatar with-status" data-color="clay" data-status="idle" id="agentAvatar-Reviewer">R</div>
+                  <span class="agent-name">Reviewer</span>
+                  <span class="agent-status-text" id="agentStatus-Reviewer">idle</span>
+                </div>
+              </div>
+              <!-- 5-state legend (revealed in Spec mode) -->
+              <div class="status-legend" data-spec-only="true">
+                <div class="status-legend-title">5 agent states (D-1)</div>
+                <div class="status-legend-row"><div class="agent-avatar with-status" data-color="ink" data-status="idle">·</div><span>idle</span></div>
+                <div class="status-legend-row"><div class="agent-avatar with-status" data-color="ink" data-status="thinking">·</div><span>thinking…</span></div>
+                <div class="status-legend-row"><div class="agent-avatar with-status" data-color="ink" data-status="working">·</div><span>working…</span></div>
+                <div class="status-legend-row"><div class="agent-avatar with-status" data-color="ink" data-status="error">·</div><span>error</span></div>
+                <div class="status-legend-row"><div class="agent-avatar with-status" data-color="ink" data-status="stopped">·</div><span>stopped</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-foot">
+          <div class="you-mark">YOU</div>
+          <div class="you-name">Kai · solo</div>
+          <button class="reset" onclick="resetDemo()" title="Reset prototype state">↺ reset</button>
+        </div>
+      </aside>
+
+      <!-- ─────  MAIN  ───── -->
+      <main class="main">
+        <!-- ─── Welcome (default) ─── -->
+        <div class="welcome" id="welcome">
+          <div class="welcome-card">
+            <div class="welcome-mark">✦</div>
+            <h1 class="welcome-title">
+              Tell Slark <em>what you want to ship</em>.
+            </h1>
+            <p class="welcome-sub">
+              No agent forms. No runtime pickers. State the goal, point to a folder,
+              and the right team shows up — already running.
+            </p>
+            <button class="welcome-cta" onclick="openCreate()">
+              + New project
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M13 5l7 7-7 7"/>
+              </svg>
+            </button>
+            <div class="welcome-meta">
+              <div><span class="v">●</span> ~3 min · goal → team</div>
+              <div><span class="v">●</span> ~7 min · team → first PR</div>
+              <div><span class="v">●</span> 100% local · ~/.slark</div>
+            </div>
+
+            <!-- Cursor backend status (data: GET /api/settings/cursor-backend/status) -->
+            <div class="backend-status" id="backendStatus">
+              <span class="bs-dot" data-state="ok"></span>
+              <span class="bs-text">
+                <strong>Cursor CLI</strong> detected · <code>cli</code> mode · v0.5.4
+              </span>
+              <a class="bs-link" href="#">Switch to SDK →</a>
+              <span class="spec-tag">CursorBackendStatus · settings.json + env</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Channel view ─── -->
+        <div class="channel" id="channel">
+          <header class="channel-head">
+            <div class="channel-name">
+              <span class="channel-hash">#</span>
+              <span class="channel-title">general</span>
+              <span class="channel-meta">3 agents · 1 active run</span>
+            </div>
+            <div class="channel-presence">
+              <div class="agent-avatar" data-color="ochre">A</div>
+              <div class="agent-avatar" data-color="moss">D</div>
+              <div class="agent-avatar" data-color="clay">R</div>
+              <span class="count">+ you</span>
+            </div>
+            <div class="channel-actions">
+              <button title="Search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+                </svg>
+              </button>
+              <button title="Channel settings">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <!-- Workflow run bar -->
+          <div class="workflow-bar" id="workflowBar" style="position: relative;">
+            <div class="spec-pin" data-anchor="top-right">workflow_runs · WS workflow_run_update</div>
+            <div class="wf-head">
+              <div class="wf-icon">w</div>
+              <div class="wf-name">
+                Run #1 · <strong>feature-development</strong> · add google oauth
+              </div>
+              <div class="wf-elapsed" id="wfElapsed">elapsed · 0s</div>
+              <div class="wf-actions">
+                <button title="Pause (coming soon — Sprint 8 P3)">⏸ pause</button>
+                <button title="Abort">✕ abort</button>
+              </div>
+            </div>
+            <div class="wf-track">
+              <div class="wf-step" id="wfs-1"></div>
+              <div class="wf-step" id="wfs-2"></div>
+              <div class="wf-step" id="wfs-3"></div>
+              <div class="wf-step" id="wfs-4"></div>
+              <div class="wf-step" id="wfs-5"></div>
+            </div>
+            <div class="wf-labels">
+              <span id="wfl-1">i. design</span>
+              <span id="wfl-2">ii. approve</span>
+              <span id="wfl-3">iii. implement</span>
+              <span id="wfl-4">iv. review</span>
+              <span id="wfl-5">v. done</span>
+            </div>
+          </div>
+
+          <div class="thread-scroll">
+            <div class="thread" id="thread">
+              <div class="day-divider">today · workflow auto-queued from goal</div>
+
+              <!-- System: workflow_started (auto-queued) -->
+              <div class="sys-line">
+                <span class="sys-time">3:00 pm</span>
+                <span class="sys-body">
+                  <span class="sys-mark">▶</span>
+                  <strong>feature-development</strong> auto-queued from your goal
+                  <span class="sys-meta">workflow #1 · run #1 · step i. design</span>
+                </span>
+                <span class="spec-tag">messages.metadata.system_event · workflow_started</span>
+              </div>
+
+              <!-- Architect -->
+              <article class="msg" data-msg="architect">
+                <div class="msg-avatar">
+                  <div class="agent-avatar" data-color="ochre">A</div>
+                </div>
+                <div>
+                  <div class="msg-head">
+                    <span class="msg-name">Architect</span>
+                    <span class="msg-time">3:01 pm</span>
+                    <span class="msg-step">step i. design</span>
+                  </div>
+                  <div class="msg-body">
+                    <p>
+                      Recommending <strong>OAuth 2.1 with PKCE</strong>, not implicit flow.
+                      Implicit is deprecated for SPAs and exposes tokens in the URL fragment.
+                      PKCE handles confidentiality without a backend secret.
+                    </p>
+                    <p>
+                      Spec at <code>docs/auth/oauth-spec.md</code>. Two open questions for you:
+                      (1) cookie vs in-memory token storage, (2) refresh-token rotation cadence.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="msg-actions">
+                  <button class="ma-btn" onclick="reactMsg(this, 'up')" title="Helpful">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M7 10v11H4V10h3zm12 0a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-3l-2 3h-5V10l5-7v6h5z"/>
+                    </svg>
+                  </button>
+                  <button class="ma-btn" onclick="reactMsg(this, 'down')" title="Off">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M7 14V3H4v11h3zm12 0a3 3 0 0 0 3-3v-3a3 3 0 0 0-3-3h-3l-2-3h-5v11l5 7v-6h5z"/>
+                    </svg>
+                  </button>
+                  <div class="ma-divider"></div>
+                  <button class="ma-coach" onclick="manualCoach('Architect')">Coach</button>
+                </div>
+              </article>
+
+              <!-- Approval card — workflow_run.status = 'awaiting_approval' between design and implement -->
+              <div class="approval-card" data-msg="approval">
+                <div class="ac-head">
+                  <span class="ac-icon">⏸</span>
+                  <div class="ac-body">
+                    <div class="ac-title">Approval needed</div>
+                    <div class="ac-sub">feature-development · step "approve" · approver = you</div>
+                  </div>
+                  <span class="ac-step">step ii. approve</span>
+                </div>
+                <details class="ac-prev">
+                  <summary>▸ Output of previous step "design"</summary>
+                  <pre>OAuth 2.1 + PKCE; cookie storage open question; refresh rotation cadence open question. See docs/auth/oauth-spec.md.</pre>
+                </details>
+                <div class="ac-actions">
+                  <button class="ac-btn primary" onclick="approveStep(this)">✓ Approve</button>
+                  <button class="ac-btn" onclick="showToast('Reject flow not part of demo')">↩ Reject…</button>
+                  <button class="ac-btn ghost" onclick="showToast('Aborted (demo)')">Abort</button>
+                </div>
+                <span class="spec-tag" style="margin: 6px 0 0;">ApprovalCard.tsx · sends /approve via WS send_message</span>
+              </div>
+
+              <!-- Dev -->
+              <article class="msg" data-msg="dev">
+                <div class="msg-avatar">
+                  <div class="agent-avatar" data-color="moss">D</div>
+                </div>
+                <div>
+                  <div class="msg-head">
+                    <span class="msg-name">Dev</span>
+                    <span class="msg-time">3:08 pm</span>
+                    <span class="msg-step">step iii. implement</span>
+                  </div>
+                  <div class="msg-body">
+                    <p>
+                      Implementing the OAuth handler. Going to add PKCE challenge generation,
+                      token exchange, and store refresh tokens in Postgres with row-level
+                      encryption.
+                    </p>
+                  </div>
+                  <div class="msg-tools">
+                    <div class="tool-line"><span class="verb">Read</span><span>packages/server/src/auth/index.ts · 248 lines</span></div>
+                    <div class="tool-line"><span class="verb">Edit</span><span>packages/server/src/auth/oauth.ts · +112 −3</span></div>
+                    <div class="tool-line"><span class="verb">Bash</span><span>pnpm test packages/server -- --run oauth · ✓ 8 passed</span></div>
+                  </div>
+                </div>
+
+                <div class="msg-actions">
+                  <button class="ma-btn" onclick="reactMsg(this, 'up')" title="Helpful">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M7 10v11H4V10h3zm12 0a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-3l-2 3h-5V10l5-7v6h5z"/>
+                    </svg>
+                  </button>
+                  <button class="ma-btn" onclick="reactMsg(this, 'down')" title="Off">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M7 14V3H4v11h3zm12 0a3 3 0 0 0 3-3v-3a3 3 0 0 0-3-3h-3l-2-3h-5v11l5 7v-6h5z"/>
+                    </svg>
+                  </button>
+                  <div class="ma-divider"></div>
+                  <button class="ma-coach" onclick="manualCoach('Dev')">Coach</button>
+                </div>
+              </article>
+
+              <!-- Reviewer (the demo target — has the inline-feedback flow) -->
+              <article class="msg" data-msg="reviewer">
+                <div class="msg-avatar">
+                  <div class="agent-avatar" data-color="clay">R</div>
+                </div>
+                <div>
+                  <div class="msg-head">
+                    <span class="msg-name">Reviewer</span>
+                    <span class="msg-time">3:14 pm</span>
+                    <span class="msg-step">step iv. review</span>
+                  </div>
+                  <div class="msg-body">
+                    <p>
+                      Looking at <code>oauth.ts</code>. I see the <code>state</code> parameter
+                      being set, but I don't see an explicit <strong>CSRF cross-check</strong>
+                      on the callback. I'd block this PR and ask Dev to add an explicit
+                      assertion.
+                    </p>
+                    <p>
+                      Also: refresh tokens are encrypted at rest — good — but they're not
+                      rotated on use. That's a footgun.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="msg-actions">
+                  <span class="spec-pin spec-pin-inline" data-anchor="top-left">POST /api/agent-reactions</span>
+                  <button class="ma-btn" onclick="reactMsg(this, 'up')" title="Helpful">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M7 10v11H4V10h3zm12 0a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-3l-2 3h-5V10l5-7v6h5z"/>
+                    </svg>
+                  </button>
+                  <button class="ma-btn" onclick="reactMsg(this, 'down')" title="Off">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M7 14V3H4v11h3zm12 0a3 3 0 0 0 3-3v-3a3 3 0 0 0-3-3h-3l-2-3h-5v11l5 7v-6h5z"/>
+                    </svg>
+                  </button>
+                  <div class="ma-divider"></div>
+                  <button class="ma-coach" onclick="manualCoach('Reviewer')">Coach</button>
+                </div>
+
+                <!-- Reason picker (anchored to this message) -->
+                <div class="reason-pop" id="reasonPop">
+                  <div class="reason-pop-head">What was off?</div>
+                  <div class="reason-tags" id="reasonTags">
+                    <button class="reason-tag" onclick="toggleReason(this)">Too vague</button>
+                    <button class="reason-tag" onclick="toggleReason(this)">Missed the risk</button>
+                    <button class="reason-tag" onclick="toggleReason(this)">Wrong tone</button>
+                    <button class="reason-tag" onclick="toggleReason(this)" data-selected="true">Should be more specific</button>
+                    <button class="reason-tag" onclick="toggleReason(this)">Wrong scope</button>
+                    <button class="reason-tag" onclick="toggleReason(this)">Other…</button>
+                  </div>
+                  <div class="reason-foot">
+                    <span class="hint">⏎ to send</span>
+                    <div>
+                      <button class="reason-cancel" onclick="closeReason()">Cancel</button>
+                      <button class="reason-submit" onclick="submitReason()">Send &amp; coach →</button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <!-- Coach hint chip (between Reviewer message and composer) -->
+            <div class="stream-hint" id="streamHint">
+              <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M12 20l9-7-9-3-9 3 9 7zM3 13v4l9 4 9-4v-4"/>
+              </svg>
+              <span>
+                <strong>Coach</strong> drafted an edit for <strong>Reviewer</strong> based on your reaction.
+                <a style="color: var(--accent); font-weight: 500; margin-left: 6px;" onclick="openCoachPanel()">Review →</a>
+              </span>
+            </div>
+          </div>
+
+          <div class="composer-wrap" style="position: relative;">
+            <div class="spec-pin" data-anchor="top-right">MessageInput.tsx · WS send_message</div>
+            <div class="composer">
+              <input class="composer-input" placeholder="Reply, or @mention an agent · type / for commands" />
+              <div class="composer-foot">
+                <button class="composer-mini" title="Mention an agent">@</button>
+                <button class="composer-mini" title="Slash command (workflows[].trigger_command)">/</button>
+                <button class="composer-mini" title="Attach (coming soon)">⊕ attach</button>
+                <label class="composer-task" title="Also create a Task referencing this message">
+                  <input type="checkbox" /> as task
+                </label>
+                <button class="composer-send">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- ─────  RIGHT RAIL (contextual)  ───── -->
+      <aside class="rail" id="rail">
+        <div class="rail-head">
+          <div>
+            <div class="rail-eyebrow" id="railEyebrow">Coach · suggested edit</div>
+            <div class="rail-title" id="railTitle">Reviewer</div>
+          </div>
+          <button class="rail-close" onclick="closeRail()">close</button>
+        </div>
+
+        <div class="rail-body">
+          <!-- Coach panel -->
+          <div class="rail-panel" data-panel="coach" data-active="true" id="panelCoach">
+            <div class="spec-pin" data-anchor="top-left" style="position: relative; display: inline-block; top: 0; left: 0; margin-bottom: 10px;">
+              agent_feedback (status='pending') · WS coach_proposal_ready
+            </div>
+            <div class="coach-greet">
+              <div class="coach-mark">C</div>
+              <div class="coach-meta">
+                Drafted in <strong>5s</strong> from your last reaction
+              </div>
+            </div>
+            <div class="coach-body">
+              <p>
+                You've marked Reviewer's last 4 catches as
+                <strong>"should be more specific."</strong> The pattern's consistent — Reviewer
+                flags risks but doesn't propose the exact assertion to add.
+              </p>
+              <p>I'd tighten its description like this:</p>
+            </div>
+            <div class="diff-block">
+              <div class="diff-line before">
+                <span class="sign">−</span>
+                <span>Catch security issues. Block the PR with a one-line reason.</span>
+              </div>
+              <div class="diff-line after">
+                <span class="sign">+</span>
+                <span>Catch security issues. Block the PR with the <strong>exact line of code or assertion</strong> the author should add — no vague callouts.</span>
+              </div>
+            </div>
+            <div class="coach-meta-line">
+              <span><span class="key">Trigger:</span> 4× "should be more specific" in 6h</span>
+            </div>
+            <div class="coach-meta-line">
+              <span><span class="key">Reversible:</span> any time within 24h</span>
+            </div>
+          </div>
+
+          <!-- Agent profile panel -->
+          <div class="rail-panel" data-panel="profile" id="panelProfile">
+            <div class="ap-head">
+              <div class="agent-avatar" data-color="clay" id="apAvatar">R</div>
+              <div>
+                <div class="ap-name" id="apName">Reviewer</div>
+                <div class="ap-role" id="apRole">guards the gate · 23 days old</div>
+              </div>
+            </div>
+
+            <div class="ap-section-title">Description (live)</div>
+            <div class="ap-desc">
+              Catch security issues. Block the PR with the
+              <span class="new">exact line of code or assertion</span>
+              the author should add — no vague callouts. When blocking on security:
+              cite the relevant RFC or OWASP item once, briefly. Block any PR that adds
+              new public surface without tests.
+            </div>
+
+            <div class="ap-section-title">This week</div>
+            <div class="ap-stats">
+              <div class="ap-stat">
+                <div class="num">7</div>
+                <div class="lbl">edits applied</div>
+              </div>
+              <div class="ap-stat">
+                <div class="num">2</div>
+                <div class="lbl">rolled back</div>
+              </div>
+              <div class="ap-stat">
+                <div class="num">41</div>
+                <div class="lbl">PRs reviewed</div>
+              </div>
+              <div class="ap-stat">
+                <div class="num">82<span style="font-size: 12px; font-family: var(--mono); color: var(--ink-faded); margin-left: 3px;">%</span></div>
+                <div class="lbl">first-pass approve</div>
+              </div>
+            </div>
+
+            <div class="ap-section-title">Evolution journal</div>
+            <div class="ap-timeline">
+              <div class="tl-item" data-kind="just-now">
+                <div class="tl-when">just now · 3:14 pm</div>
+                <div class="tl-text">Learned to <strong>name the exact assertion</strong> when blocking. Triggered by 4× "more specific" reactions.</div>
+              </div>
+              <div class="tl-item" data-kind="applied">
+                <div class="tl-when">3 days ago</div>
+                <div class="tl-text">Learned to <strong>cite the relevant RFC</strong> once when blocking on security.</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-when">5 days ago</div>
+                <div class="tl-text"><strong>Rejected:</strong> "Always require 2 approvers". Solo dev — would have stalled every PR.</div>
+              </div>
+              <div class="tl-item" data-kind="applied">
+                <div class="tl-when">9 days ago</div>
+                <div class="tl-text">Learned to <strong>hard-block missing test coverage</strong>.</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-when">23 days ago · day 1</div>
+                <div class="tl-text">Hired with the team's default brief.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="coach-actions" id="coachActions">
+          <button class="coach-action" onclick="dismissCoach()">Dismiss</button>
+          <button class="coach-action" onclick="dismissCoach()">Edit first</button>
+          <button class="coach-action primary" onclick="applyCoach()">Apply</button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ═══════════  CREATE PROJECT MODAL  ═══════════ -->
+    <div class="modal-bg" id="modalBg" onclick="if(event.target===this) closeCreate()">
+      <div class="modal">
+        <div class="modal-head">
+          <div class="modal-eyebrow">New project</div>
+          <div class="modal-step" id="modalStep">step 1 of 2</div>
+        </div>
+
+        <div class="modal-body">
+          <!-- Stage 1: form -->
+          <div class="modal-stage" data-stage="form" data-active="true">
+            <div class="field-label">
+              Goal <span class="req">·required</span>
+              <span class="spec-tag" style="margin-left: 8px;">project.json · goal · ≤500c</span>
+            </div>
+            <input
+              class="goal-input"
+              id="goalInput"
+              type="text"
+              value="Build an OAuth SSO service for our internal tools"
+              placeholder="Build a Telegram bot that summarizes my emails…"
+              oninput="updateGoalCount(); updateAutoSlug();"
+            />
+            <div class="goal-meta">
+              <span id="goalCount">52 / 500</span>
+              <span>One sentence · outcome-shaped</span>
+            </div>
+
+            <div class="ws-row">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>
+              </svg>
+              <span class="path">~/code/sso-service</span>
+              <button type="button" class="change">change</button>
+              <span class="spec-tag">project.json · workspace_path</span>
+            </div>
+
+            <!-- Advanced (collapsed by default — preserves CreateProjectDialog's 5 fields) -->
+            <details class="advanced">
+              <summary>
+                <span class="adv-caret">▸</span> Advanced
+                <span class="adv-hint">slug · display name · team rules</span>
+              </summary>
+              <div class="adv-body">
+                <div class="adv-field">
+                  <div class="field-label">
+                    Slug
+                    <span class="spec-tag">project.json · name · ^[a-z0-9_-]+$</span>
+                  </div>
+                  <input class="adv-input" id="slugInput" type="text" value="oauth-sso-service" oninput="updateSlugManual(this.value)" />
+                  <div class="adv-meta" id="slugMeta">auto-derived from goal · click to edit</div>
+                </div>
+                <div class="adv-field">
+                  <div class="field-label">
+                    Display name <span class="opt">optional</span>
+                  </div>
+                  <input class="adv-input" type="text" placeholder="OAuth SSO Service" />
+                </div>
+                <div class="adv-field">
+                  <div class="field-label">
+                    Team rules <span class="opt">optional</span>
+                    <span class="spec-tag">project.json · team_rules · injected at prompt top</span>
+                  </div>
+                  <textarea class="adv-input" rows="2" placeholder="e.g. All agents reply in English. Ask before destructive changes."></textarea>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <!-- Stage 2: building team -->
+          <div class="modal-stage" data-stage="building">
+            <div class="field-label" style="margin-bottom: 12px;">
+              <span style="color: var(--accent);">●</span>&nbsp;&nbsp;Team Architect — reasoning live
+            </div>
+            <div class="building-stream">
+              <div class="build-line"><span class="tick">00:01</span><span class="body">Read <em>package.json</em> · TypeScript + Fastify + Prisma detected</span></div>
+              <div class="build-line"><span class="tick">00:04</span><span class="body">Skimmed <em>README.md</em> + recent <em>git log</em> · backend service, no UI yet</span></div>
+              <div class="build-line"><span class="tick">00:09</span><span class="body">Goal mentions <em>OAuth</em> + <em>SSO</em> · security-sensitive, review must be first-class</span></div>
+              <div class="build-line"><span class="tick">00:14</span><span class="body">Proposing 3-person team · keeping it small to keep loops tight</span></div>
+              <div class="build-line"><span class="tick">00:19</span><span class="body"><strong>Done.</strong> Approve to start the first workflow.</span></div>
+            </div>
+
+            <div class="team-grid">
+              <div class="team-card">
+                <div class="team-head">
+                  <div class="agent-avatar" data-color="ochre">A</div>
+                  <div>
+                    <div class="team-name">Architect</div>
+                    <div class="team-role">Designs the spec</div>
+                  </div>
+                </div>
+                <div class="team-blurb">Drafts the OAuth flow, picks PKCE vs implicit, marks where review must happen.</div>
+              </div>
+              <div class="team-card">
+                <div class="team-head">
+                  <div class="agent-avatar" data-color="moss">D</div>
+                  <div>
+                    <div class="team-name">Dev</div>
+                    <div class="team-role">Writes the code</div>
+                  </div>
+                </div>
+                <div class="team-blurb">Implements the spec with strict typing, async error boundaries, tests at every boundary.</div>
+              </div>
+              <div class="team-card">
+                <div class="team-head">
+                  <div class="agent-avatar" data-color="clay">R</div>
+                  <div>
+                    <div class="team-name">Reviewer</div>
+                    <div class="team-role">Guards the gate</div>
+                  </div>
+                </div>
+                <div class="team-blurb">Hard-gates on CSRF, token storage, redirect URI safety. Sends bounced PRs back with one-line reasons.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <div class="ttfr-mini">
+            <span class="dot"></span>
+            <span id="ttfrMini">~3 min to a working team</span>
+          </div>
+          <div>
+            <button class="btn btn-ghost" id="modalBack" onclick="modalBack()" style="display:none">← back</button>
+            <button class="btn btn-primary" id="modalNext" onclick="modalNext()">
+              Assemble team
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M13 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════  TOAST  ═══════════ -->
+    <div class="toast" id="toast">
+      <span id="toastText">Sent to coach…</span>
+    </div>
+
+    <!-- ═══════════  SPEC MODE TOGGLE  ═══════════ -->
+    <button class="spec-toggle" id="specToggle" onclick="toggleSpec()" title="Reveal data-source annotations">
+      <span class="dot"></span>
+      <span id="specToggleLabel">Spec mode · off</span>
+    </button>
+
+    <!-- ═══════════  Behavior  ═══════════ -->
+    <script>
+      // ───  State machine
+      const state = {
+        scene: 'welcome', // welcome | channel
+        modal: false,
+        modalStage: 'form', // form | building
+        rail: false,
+        railPanel: 'coach', // coach | profile
+        wfStep: 0,          // 0..5
+        elapsedSec: 0,
+        wfTimer: null,
+        spec: false,        // spec annotation overlay
+        slugManual: false,  // user has manually edited slug
+      };
+
+      const $ = (s, r=document) => r.querySelector(s);
+      const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+      function setApp() {
+        $('#app').dataset.rail = state.rail ? 'true' : 'false';
+        $('#app').dataset.spec = state.spec ? 'true' : 'false';
+        $('#welcome').dataset.hidden = state.scene === 'channel' ? 'true' : 'false';
+        $('#channel').dataset.active = state.scene === 'channel' ? 'true' : 'false';
+        $('#modalBg').dataset.open = state.modal ? 'true' : 'false';
+
+        $$('.modal-stage').forEach(s => {
+          s.dataset.active = s.dataset.stage === state.modalStage ? 'true' : 'false';
+        });
+
+        $$('.rail-panel').forEach(p => {
+          p.dataset.active = p.dataset.panel === state.railPanel ? 'true' : 'false';
+        });
+        // coach actions only show for coach panel
+        $('#coachActions').style.display = state.railPanel === 'coach' ? 'flex' : 'none';
+
+        // sidebar empty/full toggle
+        const isReady = state.scene === 'channel';
+        $('#sidebarEmpty').style.display = isReady ? 'none' : 'block';
+        $('#sidebarFull').style.display  = isReady ? 'block' : 'none';
+        $('#projSwitch').dataset.empty   = isReady ? 'false' : 'true';
+        if (isReady) {
+          $('#projMark').style.display = 'grid';
+          $('#projName').textContent = 'OAuth SSO Service';
+        }
+      }
+
+      // ───  Create project flow
+      function openCreate() {
+        state.modal = true;
+        state.modalStage = 'form';
+        $('#modalStep').textContent = 'step 1 of 2';
+        $('#modalNext').innerHTML = `Assemble team
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M13 5l7 7-7 7"/>
+          </svg>`;
+        $('#modalBack').style.display = 'none';
+        $('#ttfrMini').textContent = '~3 min to a working team';
+        setApp();
+      }
+      function closeCreate() {
+        state.modal = false;
+        setApp();
+      }
+      function modalBack() {
+        state.modalStage = 'form';
+        $('#modalStep').textContent = 'step 1 of 2';
+        $('#modalNext').innerHTML = `Assemble team
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M13 5l7 7-7 7"/>
+          </svg>`;
+        $('#modalBack').style.display = 'none';
+        $('#ttfrMini').textContent = '~3 min to a working team';
+        setApp();
+      }
+      function modalNext() {
+        if (state.modalStage === 'form') {
+          state.modalStage = 'building';
+          $('#modalStep').textContent = 'step 2 of 2';
+          $('#modalBack').style.display = 'inline-flex';
+          $('#modalNext').innerHTML = `Approve &amp; start first run
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M13 5l7 7-7 7"/>
+            </svg>`;
+          $('#ttfrMini').textContent = 'Reading repo · proposing team…';
+          // restart build line animation
+          $$('.modal-stage[data-stage="building"] .build-line, .modal-stage[data-stage="building"] .team-card').forEach(el => {
+            el.style.animation = 'none';
+            void el.offsetWidth;
+            el.style.animation = '';
+          });
+          setApp();
+        } else {
+          // approve and start run
+          closeCreate();
+          enterChannel();
+        }
+      }
+      function updateGoalCount() {
+        const v = $('#goalInput').value;
+        $('#goalCount').textContent = v.length + ' / 500';
+      }
+
+      // Auto-derive slug from goal (first 3 words). User edit "wins" — won't overwrite.
+      function deriveSlug(goal) {
+        return (goal || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9\s_-]/g, '')
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 3)
+          .join('-')
+          .replace(/^-|-$/g, '') || 'untitled';
+      }
+      function updateAutoSlug() {
+        if (state.slugManual) return;
+        const slug = deriveSlug($('#goalInput').value);
+        $('#slugInput').value = slug;
+        const meta = $('#slugMeta');
+        if (meta) {
+          meta.textContent = 'auto-derived from goal · click to edit';
+          meta.classList.remove('user-edited');
+        }
+      }
+      function updateSlugManual(_v) {
+        state.slugManual = true;
+        const meta = $('#slugMeta');
+        if (meta) {
+          meta.textContent = 'manually edited';
+          meta.classList.add('user-edited');
+        }
+      }
+
+      function toggleSpec() {
+        state.spec = !state.spec;
+        $('#specToggleLabel').textContent = state.spec ? 'Spec mode · on' : 'Spec mode · off';
+        setApp();
+      }
+
+      // ───  Enter channel + simulate workflow run
+      function enterChannel() {
+        state.scene = 'channel';
+        setApp();
+        // show workflow bar
+        $('#workflowBar').dataset.active = 'true';
+        // start workflow simulation
+        startWorkflowSim();
+      }
+
+      function setAgentStatus(name, st) {
+        const ava = $(`#agentAvatar-${name}`);
+        const txt = $(`#agentStatus-${name}`);
+        if (ava) ava.dataset.status = st;
+        if (txt) {
+          txt.textContent = st;
+          txt.dataset.state = (st === 'working' || st === 'thinking') ? 'working' : '';
+        }
+      }
+
+      function setStep(i, st) {
+        const node = $(`#wfs-${i}`);
+        const lbl  = $(`#wfl-${i}`);
+        if (node) {
+          if (st) node.dataset.state = st; else node.removeAttribute('data-state');
+        }
+        if (lbl) {
+          if (st) lbl.dataset.state = st; else lbl.removeAttribute('data-state');
+        }
+      }
+
+      function showMsg(sel) {
+        const m = $(sel);
+        if (m) m.dataset.shown = 'true';
+      }
+
+      function startWorkflowSim() {
+        // Reset everything
+        for (let i = 1; i <= 5; i++) setStep(i, '');
+        ['Architect', 'Dev', 'Reviewer'].forEach(n => setAgentStatus(n, 'idle'));
+        $$('.msg').forEach(m => m.dataset.shown = 'false');
+        $$('.sys-line').forEach(s => s.style.opacity = '0');
+        const ac = $('.approval-card');
+        if (ac) {
+          ac.dataset.shown = 'false';
+          ac.removeAttribute('data-state');
+        }
+        clearInterval(state.wfTimer);
+        state.elapsedSec = 0;
+        $('#wfElapsed').textContent = 'elapsed · 0s';
+        state.wfTimer = setInterval(() => {
+          state.elapsedSec++;
+          const m = Math.floor(state.elapsedSec / 60);
+          const s = state.elapsedSec % 60;
+          $('#wfElapsed').textContent = `elapsed · ${m ? m + 'm ' : ''}${s}s`;
+        }, 1000);
+
+        // System: workflow_started
+        setTimeout(() => {
+          $$('.sys-line').forEach(s => s.style.opacity = '');
+        }, 100);
+
+        // Step i: design — Architect working
+        setTimeout(() => {
+          setStep(1, 'active');
+          setAgentStatus('Architect', 'working');
+        }, 250);
+        setTimeout(() => {
+          showMsg('.msg[data-msg="architect"]');
+        }, 1100);
+
+        // Step ii: awaiting_approval (USER must click Approve to advance)
+        setTimeout(() => {
+          setStep(1, 'done');
+          setAgentStatus('Architect', 'idle');
+          setStep(2, 'active');
+          showMsg('.approval-card');
+        }, 2400);
+      }
+
+      // Continues the workflow after user clicks the Approval Card
+      function approveStep(btn) {
+        const card = btn.closest('.approval-card');
+        if (!card) return;
+        if (card.dataset.state === 'approved') return;
+        card.dataset.state = 'approved';
+        showToast('<span class="accent">/approve</span> sent · workflow advancing');
+
+        // Step iii: implement — Dev working
+        setTimeout(() => {
+          setStep(2, 'done');
+          setStep(3, 'active');
+          setAgentStatus('Dev', 'working');
+        }, 600);
+        setTimeout(() => {
+          showMsg('.msg[data-msg="dev"]');
+        }, 1400);
+        setTimeout(() => {
+          setStep(3, 'done');
+          setAgentStatus('Dev', 'idle');
+        }, 3400);
+        // Step iv: review — Reviewer working then thinking (awaits feedback)
+        setTimeout(() => {
+          setStep(4, 'active');
+          setAgentStatus('Reviewer', 'working');
+        }, 3700);
+        setTimeout(() => {
+          showMsg('.msg[data-msg="reviewer"]');
+        }, 4400);
+        setTimeout(() => {
+          setStep(4, 'active');
+          setAgentStatus('Reviewer', 'thinking');
+        }, 4900);
+      }
+
+      // ───  Message reactions
+      function reactMsg(btn, kind) {
+        const bar = btn.parentElement;
+        bar.querySelectorAll('.ma-btn').forEach(b => {
+          if (b !== btn) b.removeAttribute('data-active');
+        });
+        const wasActive = btn.dataset.active === kind;
+        if (wasActive) {
+          btn.removeAttribute('data-active');
+          return;
+        }
+        btn.dataset.active = kind;
+
+        const msgEl = btn.closest('.msg');
+        const isReviewer = msgEl && msgEl.dataset.msg === 'reviewer';
+
+        if (kind === 'down' && isReviewer) {
+          openReason();
+        } else if (kind === 'down') {
+          // smaller flow: just show toast
+          showToast('Reaction logged · coach will look later');
+        } else {
+          showToast('Reaction logged');
+        }
+      }
+
+      function openReason() {
+        $('#reasonPop').dataset.open = 'true';
+      }
+      function closeReason() {
+        $('#reasonPop').dataset.open = 'false';
+      }
+      function toggleReason(btn) {
+        const wasSelected = btn.dataset.selected === 'true';
+        $$('.reason-tag').forEach(t => t.removeAttribute('data-selected'));
+        if (!wasSelected) btn.dataset.selected = 'true';
+      }
+
+      function submitReason() {
+        closeReason();
+        // 1) immediate toast — drafting
+        showToast('<span class="spinner"></span> Sent to coach · drafting edit…');
+        // 2) hint chip in stream after a short beat
+        setTimeout(() => {
+          $('#streamHint').dataset.visible = 'true';
+        }, 1100);
+        // 3) auto-open coach rail (so even if user doesn't click Review, it appears)
+        setTimeout(() => {
+          openCoachPanel();
+          showToast('Coach drafted an edit · review →');
+        }, 2000);
+      }
+
+      function manualCoach(name) {
+        $('#railEyebrow').textContent = 'Coach · suggested edit';
+        $('#railTitle').textContent = name;
+        state.railPanel = 'coach';
+        state.rail = true;
+        setApp();
+      }
+
+      function openCoachPanel() {
+        $('#railEyebrow').textContent = 'Coach · suggested edit';
+        $('#railTitle').textContent = 'Reviewer';
+        state.railPanel = 'coach';
+        state.rail = true;
+        setApp();
+      }
+
+      function dismissCoach() {
+        $('#streamHint').dataset.visible = 'false';
+        state.rail = false;
+        setApp();
+        showToast('Dismissed · agent unchanged');
+      }
+
+      function applyCoach() {
+        $('#streamHint').dataset.visible = 'false';
+        showToast('Applied to <span class="accent">Reviewer</span> · journal updated');
+        // After apply, show the agent profile so user sees the diff in context
+        setTimeout(() => {
+          $('#railEyebrow').textContent = 'Agent';
+          $('#railTitle').textContent = 'Reviewer';
+          state.railPanel = 'profile';
+          state.rail = true;
+          setApp();
+        }, 800);
+      }
+
+      function openAgentProfile(name) {
+        $('#railEyebrow').textContent = 'Agent';
+        $('#railTitle').textContent = name;
+        $('#apName').textContent = name;
+        // for prototype we only have full data for Reviewer — others get a brief
+        if (name !== 'Reviewer') {
+          $('#apRole').textContent = name === 'Architect' ? 'designs the spec · 23 days old'
+                                  : 'writes the code · 23 days old';
+        } else {
+          $('#apRole').textContent = 'guards the gate · 23 days old';
+        }
+        $('#apAvatar').dataset.color = name === 'Architect' ? 'ochre'
+                                     : name === 'Dev'       ? 'moss'
+                                     : 'clay';
+        $('#apAvatar').textContent = name[0];
+        state.railPanel = 'profile';
+        state.rail = true;
+        setApp();
+      }
+
+      function closeRail() {
+        state.rail = false;
+        setApp();
+      }
+
+      // ───  Toast
+      let toastTimer;
+      function showToast(html) {
+        const t = $('#toast');
+        $('#toastText').innerHTML = html;
+        t.dataset.visible = 'true';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => (t.dataset.visible = 'false'), 2200);
+      }
+
+      // ───  Reset
+      function resetDemo() {
+        state.scene = 'welcome';
+        state.modal = false;
+        state.rail = false;
+        state.railPanel = 'coach';
+        state.slugManual = false;
+        clearInterval(state.wfTimer);
+        $('#workflowBar').dataset.active = 'false';
+        $$('.msg').forEach(m => m.dataset.shown = 'false');
+        $$('.sys-line').forEach(s => s.style.opacity = '0');
+        $$('.ma-btn').forEach(b => b.removeAttribute('data-active'));
+        $('#streamHint').dataset.visible = 'false';
+        const ac = $('.approval-card');
+        if (ac) {
+          ac.dataset.shown = 'false';
+          ac.removeAttribute('data-state');
+        }
+        closeReason();
+        for (let i = 1; i <= 5; i++) setStep(i, '');
+        ['Architect', 'Dev', 'Reviewer'].forEach(n => setAgentStatus(n, 'idle'));
+        setApp();
+        showToast('Demo reset · click <span class="accent">+ New project</span>');
+      }
+
+      // ───  Keyboard
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if ($('#reasonPop').dataset.open === 'true') return closeReason();
+          if (state.modal) return closeCreate();
+          if (state.rail) return closeRail();
+        }
+        if (e.key === 'Enter' && $('#reasonPop').dataset.open === 'true') {
+          submitReason();
+        }
+      });
+
+      // ───  Init
+      setApp();
+    </script>
+  </body>
+</html>

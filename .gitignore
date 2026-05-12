@@ -7,6 +7,7 @@ dist/
 
 # Build outputs
 packages/*/dist/
+packages/*/dist-types/
 packages/*/build/
 packages/*/.vite/
 
