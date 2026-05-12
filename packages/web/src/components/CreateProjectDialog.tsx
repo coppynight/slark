@@ -137,12 +137,11 @@ export function CreateProjectDialog({ open, onClose }: Props) {
       });
       upsertChannel(channel);
 
-      // 3. 批量创建 Agents（跳过 fallback 中 runtime 为空的；fallback 时走下面的分支）
+      // 3. 批量创建 Agents
       const createdAgents = await Promise.all(
         suggestion.agents.map(async (a) => {
-          // 兜底 runtime 为空的 Agent 也要创建，但写 'cursor' 作为占位（用户 Approve 后还需编辑）
-          // 若 Runtime 下拉在 CreateAgentDialog 里限制未装则 disabled；这里先允许创建，
-          // 用户在 DM 中 @Agent 时若 runtime 不可用会看到 system error，符合 Q-2 预期降级
+          // 兜底 runtime 为空的 Agent 也要创建，但写 'cursor' 作为占位（用户 Approve 后还需编辑）。
+          // 如果后端检测到 Codex 可用，fallback/suggestion 会直接返回 runtime='codex'。
           const runtime = a.runtime || 'cursor';
           const payload = {
             name: ensureUniqueName(a.name),
@@ -389,7 +388,7 @@ function Step2({
             Team Architect is analyzing your goal…
           </div>
           <div className="text-[11px] font-mono text-text-secondary mt-2">
-            Spawning cursor-agent (timeout 30s)
+            Spawning local coding runtime (timeout 30s)
           </div>
         </div>
       )}

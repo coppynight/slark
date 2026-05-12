@@ -34,3 +34,55 @@ export function createAdapterForRuntime(runtime: Runtime): CLIAdapter | null {
   if (runtime === 'codex') return createCodexAdapter();
   return null;
 }
+
+/**
+ * 系统 agent 的 runtime 检测结果。
+ *
+ * Review B-3：把 `install` 一起返回，调用方可以直接复用，无需再次调用
+ * `adapter.checkInstallation()`。这避免了 SDK 模式下每个 system agent 都
+ * 再发一次 `Cursor.me()` 网络调用。
+ *
+ * Review B-4：当 cursor 与 codex 都不可用时，`noRuntimeAvailable=true` 让
+ * 调用方明确知晓"两个 runtime 都没装"，可以记录 warn 日志而不是无声跳过。
+ */
+export interface SystemAdapterPick {
+  adapter: CLIAdapter;
+  install: {
+    installed: boolean;
+    version?: string;
+    path?: string;
+    error?: string;
+  };
+  /** cursor 与 codex 都未安装且未通过 SLARK_SYSTEM_RUNTIME 显式指定时为 true */
+  noRuntimeAvailable?: boolean;
+}
+
+export async function createSystemAdapter(): Promise<SystemAdapterPick> {
+  const configured = (process.env.SLARK_SYSTEM_RUNTIME ?? '').toLowerCase();
+  if (configured === 'cursor') {
+    const adapter = createCursorAdapter();
+    return { adapter, install: await adapter.checkInstallation() };
+  }
+  if (configured === 'codex') {
+    const adapter = createCodexAdapter();
+    return { adapter, install: await adapter.checkInstallation() };
+  }
+
+  const cursor = createCursorAdapter();
+  const cursorInstall = await cursor.checkInstallation();
+  if (cursorInstall.installed) {
+    return { adapter: cursor, install: cursorInstall };
+  }
+
+  const codex = createCodexAdapter();
+  const codexInstall = await codex.checkInstallation();
+  if (codexInstall.installed) {
+    return { adapter: codex, install: codexInstall };
+  }
+
+  return { adapter: cursor, install: cursorInstall, noRuntimeAvailable: true };
+}
+
+export function runtimeForAdapter(adapter: CLIAdapter): Runtime {
+  return adapter.name === 'codex' ? 'codex' : 'cursor';
+}

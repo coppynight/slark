@@ -20,7 +20,7 @@
 import { COACH_NEGATIVE_THRESHOLD, COACH_TIMEOUT_MS, EVALUATOR_WINDOW_MS } from '@slark/shared';
 import type { Agent, AgentFeedback, AgentObservation } from '@slark/shared';
 import type { Database } from 'better-sqlite3';
-import { createCursorAdapter } from '../agents/adapter-factory.js';
+import { createSystemAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
 import {
   agentRepo,
@@ -56,9 +56,19 @@ export async function runCoachOnce(
     proposals_created: 0,
     skipped: [],
   };
-  const adapter = createCursorAdapter();
-  const install = await adapter.checkInstallation();
-  if (!install.installed) return summary;
+  const { adapter, install, noRuntimeAvailable } = await createSystemAdapter();
+  if (noRuntimeAvailable) {
+    logger.warn(
+      '[coach] no coding runtime available (cursor/codex both missing); skipping this tick',
+    );
+    return summary;
+  }
+  if (!install.installed) {
+    logger.warn(
+      `[coach] ${adapter.name} not available${install.error ? `: ${install.error}` : ''}; skipping this tick`,
+    );
+    return summary;
+  }
 
   const since = Date.now() - EVALUATOR_WINDOW_MS;
   const agents = agentRepo.list(db);
@@ -108,7 +118,17 @@ export async function runCoachForAgent(
   const observations = observationRepo.listByAgent(db, agent.id, { since, limit: 50 });
   if (observations.length === 0) return null;
 
-  const adapter = createCursorAdapter();
+  const { adapter, install, noRuntimeAvailable } = await createSystemAdapter();
+  if (noRuntimeAvailable) {
+    logger.warn(`[coach] ${agent.name}: no coding runtime available; skipping`);
+    return null;
+  }
+  if (!install.installed) {
+    logger.warn(
+      `[coach] ${agent.name}: ${adapter.name} not available${install.error ? `: ${install.error}` : ''}; skipping`,
+    );
+    return null;
+  }
   const prompt = buildCoachPrompt(agent, observations, hot);
   const result = await runWithAdapter(
     adapter,

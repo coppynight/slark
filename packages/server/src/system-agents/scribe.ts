@@ -29,7 +29,7 @@ import type {
   Lesson,
   LessonKind,
 } from '@slark/shared';
-import { createCursorAdapter } from '../agents/adapter-factory.js';
+import { createSystemAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
 import { decisionRepo, lessonRepo } from '../db/repos.js';
 import type { Database } from 'better-sqlite3';
@@ -73,8 +73,15 @@ export interface ScribeOutput {
  * Caller（runner / route）负责把结果写入 decisions / lessons 表（review_status='pending'）。
  */
 export async function runScribe(input: ScribeInput): Promise<ScribeOutput> {
-  const adapter = createCursorAdapter();
-  const install = await adapter.checkInstallation();
+  const { adapter, install, noRuntimeAvailable } = await createSystemAdapter();
+  if (noRuntimeAvailable) {
+    console.warn(
+      '[scribe] no coding runtime available (cursor/codex both missing); skipping sediment',
+    );
+    return emptyOutput(
+      'no coding runtime available (install cursor-agent or codex CLI, or set SLARK_SYSTEM_RUNTIME)',
+    );
+  }
   if (!install.installed) {
     return emptyOutput(
       `${adapter.name} not available${install.error ? `: ${install.error}` : ''}`,
