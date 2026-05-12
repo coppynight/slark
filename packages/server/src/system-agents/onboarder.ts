@@ -56,16 +56,24 @@ export async function runOnboarderForProject(
     /* ignore */
   }
 
-  // 没装 cursor backend 或 workspace 完全空白 → 写一个 fallback
-  const adapter = await createSystemAdapter();
-  const install = await adapter.checkInstallation();
+  // 没装 cursor / codex 或 workspace 完全空白 → 写一个 fallback
+  const { adapter, install, noRuntimeAvailable } = await createSystemAdapter();
+  if (noRuntimeAvailable) {
+    logger.warn(
+      `[onboarder] ${project.name}: no coding runtime available (cursor/codex both missing); writing minimal fallback`,
+    );
+  }
   if (!install.installed || (!readme && !pkgJson && recentCommits.length === 0)) {
     onboardingRepo.upsert(db, {
       overview: project.goal,
       tech_stack: deriveQuickStack(pkgJson),
       conventions: null,
     });
-    logger.info(`[onboarder] ${project.name}: minimal fallback (no cursor backend or empty workspace)`);
+    logger.info(
+      `[onboarder] ${project.name}: minimal fallback (${
+        install.installed ? 'empty workspace' : `${adapter.name} not available`
+      })`,
+    );
     return;
   }
 

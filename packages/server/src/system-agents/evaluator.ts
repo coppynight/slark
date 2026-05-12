@@ -92,10 +92,17 @@ export async function runEvaluatorOnce(
   db: Database,
   logger: EvaluatorLogger = consoleLog,
 ): Promise<EvaluatorRunSummary> {
-  const adapter = await createSystemAdapter();
-  const install = await adapter.checkInstallation();
+  const { adapter, install, noRuntimeAvailable } = await createSystemAdapter();
+  if (noRuntimeAvailable) {
+    logger.warn(
+      '[evaluator] no coding runtime available (cursor/codex both missing); skipping',
+    );
+    return { agents_evaluated: 0, observations_created: 0, skipped: [] };
+  }
   if (!install.installed) {
-    logger.info(`[evaluator] ${adapter.name} not available; skipping`);
+    logger.warn(
+      `[evaluator] ${adapter.name} not available${install.error ? `: ${install.error}` : ''}; skipping`,
+    );
     return { agents_evaluated: 0, observations_created: 0, skipped: [] };
   }
 

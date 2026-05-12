@@ -48,8 +48,17 @@ export async function runFacilitator(
   input: FacilitatorInput,
   logger: FacilitatorLogger = consoleLog,
 ): Promise<FacilitatorOutput> {
-  const adapter = await createSystemAdapter();
-  const install = await adapter.checkInstallation();
+  const { adapter, install, noRuntimeAvailable } = await createSystemAdapter();
+  if (noRuntimeAvailable) {
+    logger.warn(
+      '[facilitator] no coding runtime available (cursor/codex both missing); falling back',
+    );
+    return {
+      ok: false,
+      fallback_reason:
+        'no coding runtime available (install cursor-agent or codex CLI, or set SLARK_SYSTEM_RUNTIME)',
+    };
+  }
   if (!install.installed) {
     return {
       ok: false,

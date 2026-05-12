@@ -31,11 +31,20 @@ export interface SuggestTeamInput {
 }
 
 export async function suggestTeam(input: SuggestTeamInput): Promise<TeamSuggestion> {
-  const adapter = await createSystemAdapter();
+  const { adapter, install, noRuntimeAvailable } = await createSystemAdapter();
   const defaultRuntime = runtimeForAdapter(adapter);
 
   // 1. 预检查：本地 coding backend 是否可用
-  const install = await adapter.checkInstallation();
+  if (noRuntimeAvailable) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[team-architect] no coding runtime available (cursor/codex both missing); using fallback team',
+    );
+    return fallbackTeam(
+      defaultRuntime,
+      'no coding runtime available (install cursor-agent or codex CLI, or set SLARK_SYSTEM_RUNTIME)',
+    );
+  }
   if (!install.installed) {
     return fallbackTeam(
       defaultRuntime,
@@ -238,8 +247,8 @@ function parseTeamSuggestion(raw: string, defaultRuntime: Runtime): Omit<TeamSug
     const description = typeof a.description === 'string' ? a.description.trim() : '';
     if (!name || !description) continue;
 
-    const runtime = typeof a.runtime === 'string' ? a.runtime.trim() : defaultRuntime;
-    const model = typeof a.model === 'string' ? a.model.trim() : defaultModel(defaultRuntime, 'dev');
+    const llmRuntime = typeof a.runtime === 'string' ? a.runtime.trim() : '';
+    const llmModel = typeof a.model === 'string' ? a.model.trim() : '';
     // Phase B：reasoning 5 值；老 LLM 输出可能仍写 'xhigh'，在此 normalize 到 'extra-high'。
     const reasoningRaw = typeof a.reasoning === 'string' ? a.reasoning.trim() : 'medium';
     const reasoning: ReasoningEffort =
@@ -253,18 +262,28 @@ function parseTeamSuggestion(raw: string, defaultRuntime: Runtime): Omit<TeamSug
           ? 'extra-high'
           : 'medium';
 
-    const runtimeNormalized = runtime === 'cursor' || runtime === 'codex' ? runtime : defaultRuntime;
+    // Review B-2：强制对齐当前可用 runtime。LLM 即便看到 prompt 里的 "Use runtime=codex"
+    // 也可能继续吐 "cursor"，落库后用户首次 @ 它就会遇到 "cursor backend not configured"。
+    // 这里直接覆盖为本地真实可用的 runtime，让 Team Architect 的输出永远可用。
+    const runtimeNormalized: Runtime = defaultRuntime;
+
+    // 当 LLM 输出的 runtime 与本地不一致时，它选的 model 大概率也来自另一份 catalog
+    // （例如 'claude-opus-4-7' 落到 codex runtime 上无法识别）→ 同步 fallback 到当前
+    // runtime 的默认 model；当 runtime 一致或 LLM 没给时按现状处理。
+    const runtimeMatches = llmRuntime === defaultRuntime;
+    const model = runtimeMatches && llmModel ? llmModel : defaultModel(defaultRuntime, 'dev');
 
     // Sprint 4-ext / Phase A：thinking / context 接受多种 LLM 输出变体
-    const thinking = parseThinking(a.thinking);
-    const context = parseContext(a.context);
+    // Codex CLI 不支持 thinking / context 字段，强制为 null 与 fallback 三件套保持一致。
+    const thinking = runtimeNormalized === 'codex' ? null : parseThinking(a.thinking);
+    const context = runtimeNormalized === 'codex' ? null : parseContext(a.context);
 
     agents.push({
       name,
       role: role || name,
       description,
       runtime: runtimeNormalized,
-      model: model || defaultModel(runtimeNormalized, 'dev'),
+      model,
       reasoning,
       thinking,
       context,
