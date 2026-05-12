@@ -79,7 +79,9 @@ export function OpenProjectDialog({ open, onClose }: Props) {
           name: finalName,
           display_name: deriveDisplayName(trimmed),
           workspace_path: trimmed,
-          goal: '(Goal not set yet — describe what this project is about to let Team Architect recommend a team.)',
+          // Sprint 8 / Lo-13: 不写占位文本，保持空字符串表示"未设置"，
+          // 避免污染 Team Architect 推荐输入；Build Team 入口会校验非空再调用
+          goal: '',
           color: hashColor(trimmed),
         }),
       });

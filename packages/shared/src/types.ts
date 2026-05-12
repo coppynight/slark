@@ -25,7 +25,15 @@ export interface Project {
   display_name: string | null;
   /** 代码仓库绝对路径，必填（D-8 废除沙盒后无兜底） */
   workspace_path: string;
-  /** 项目目标，必填，最长 GOAL_MAX_LENGTH 字符（D-14）*/
+  /**
+   * 项目目标，最长 GOAL_MAX_LENGTH 字符（D-14）。
+   *
+   * 空字符串表示"未设置"（OpenProjectDialog 创建空 project 时的状态）；
+   * 真正需要"已填写"约束的地方（Team Architect / Build Team）应当显式校验
+   * `goal.trim().length > 0`，不能依赖类型层防御。
+   * Sprint 8 / Lo-13: 不再写 `(Goal not set yet — ...)` 这种占位文本到存储层，
+   * 避免污染 Team Architect 推荐输入。
+   */
   goal: string;
   /** 可选团队协作规则，ContextBuilder 将注入到 prompt 顶部 */
   team_rules: string | null;

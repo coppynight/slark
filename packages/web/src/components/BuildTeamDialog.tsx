@@ -38,7 +38,14 @@ interface Props {
   onCreated?: () => void | Promise<void>;
 }
 
+// Sprint 8 / Lo-13: r1 之前 OpenProjectDialog 写入过 "(Goal not set yet — ...)" 占位
+// 文本；现已改写空字符串。这里保留兼容 r1 老 project 的 prefix 检测。
 const PLACEHOLDER_GOAL_PREFIX = '(Goal not set yet';
+
+function isUnsetGoal(goal: string | null | undefined): boolean {
+  const g = (goal ?? '').trim();
+  return g.length === 0 || g.startsWith(PLACEHOLDER_GOAL_PREFIX);
+}
 
 type Phase = 'goal' | 'suggesting' | 'review' | 'creating' | 'done';
 
@@ -53,7 +60,7 @@ export function BuildTeamDialog({ open, onClose, project, onCreated }: Props) {
 
   useEffect(() => {
     if (open) {
-      const isPlaceholder = (project.goal ?? '').startsWith(PLACEHOLDER_GOAL_PREFIX);
+      const isPlaceholder = isUnsetGoal(project.goal);
       setGoal(isPlaceholder ? '' : project.goal ?? '');
       setSuggestion(null);
       setError(null);

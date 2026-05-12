@@ -186,10 +186,12 @@ export function ChannelPage() {
     return allAgents.filter((a) => a.project_id === channel.project_id).length;
   }, [allAgents, channel.project_id]);
 
-  // 当前 project 的 goal 是不是 OpenProjectDialog 写的占位符（"(Goal not set yet …)"）
+  // Sprint 8 / Lo-13: goal 未设置（空字符串）或仍是 r1 老 project 残留的占位文本时，
+  // BuildTeamBanner 提示用户去 Settings 填 goal 再触发 Team Architect。
   const goalIsPlaceholder = useMemo(() => {
     const proj = projects.find((p) => p.id === channel.project_id);
-    return (proj?.goal ?? '').startsWith('(Goal not set yet');
+    const g = (proj?.goal ?? '').trim();
+    return g.length === 0 || g.startsWith('(Goal not set yet');
   }, [projects, channel.project_id]);
 
   return (
