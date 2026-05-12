@@ -102,6 +102,7 @@ export function BuildTeamDialog({ open, onClose, project, onCreated }: Props) {
         suggestion.agents.map((a) =>
           createAgent({
             name: ensureUniqueName(a.name),
+            role: a.role ?? undefined,
             description: a.description,
             runtime: (a.runtime || 'cursor') as Runtime,
             model: a.model || undefined,

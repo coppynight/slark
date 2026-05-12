@@ -145,6 +145,7 @@ export function CreateProjectDialog({ open, onClose }: Props) {
           const runtime = a.runtime || 'cursor';
           const payload = {
             name: ensureUniqueName(a.name),
+            role: a.role ?? undefined,
             description: a.description,
             runtime,
             model: a.model || undefined,

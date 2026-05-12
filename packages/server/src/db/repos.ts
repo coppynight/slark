@@ -147,6 +147,7 @@ export const channelRepo = {
 interface AgentRow {
   id: string;
   name: string;
+  role: string | null;
   avatar: string | null;
   description: string | null;
   runtime: string;
@@ -162,6 +163,7 @@ function rowToAgent(r: AgentRow): Agent {
   return {
     id: r.id,
     name: r.name,
+    role: r.role ?? null,
     avatar: r.avatar,
     description: r.description,
     runtime: r.runtime as Runtime,
@@ -196,6 +198,7 @@ export const agentRepo = {
     input: {
       id?: string;
       name: string;
+      role?: string | null;
       avatar?: string | null;
       description?: string | null;
       runtime: Runtime;
@@ -215,11 +218,12 @@ export const agentRepo = {
           ? 1
           : 0;
     db.prepare(
-      `INSERT INTO agents (id, name, avatar, description, runtime, model, reasoning, thinking, context, env_vars_json, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO agents (id, name, role, avatar, description, runtime, model, reasoning, thinking, context, env_vars_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       input.name,
+      input.role ?? null,
       input.avatar ?? null,
       input.description ?? null,
       input.runtime,
@@ -233,6 +237,7 @@ export const agentRepo = {
     return {
       id,
       name: input.name,
+      role: input.role ?? null,
       avatar: input.avatar ?? null,
       description: input.description ?? null,
       runtime: input.runtime,
@@ -256,6 +261,10 @@ export const agentRepo = {
     if (patch.name !== undefined) {
       fields.push('name = ?');
       values.push(patch.name);
+    }
+    if (patch.role !== undefined) {
+      fields.push('role = ?');
+      values.push(patch.role);
     }
     if (patch.avatar !== undefined) {
       fields.push('avatar = ?');

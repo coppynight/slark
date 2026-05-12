@@ -38,7 +38,12 @@ import {
 } from '../db/repos.js';
 import { hub } from '../ws/hub.js';
 import { abortChannelAgentRuns, triggerAgent } from '../agents/engine.js';
-import { parseAgentMention, parseWorkflowYaml } from './yaml-parser.js';
+import {
+  formatOwnerResolveError,
+  parseAgentMention,
+  parseWorkflowYaml,
+  resolveOwnerToAgent,
+} from './yaml-parser.js';
 import { persistScribeOutput, runScribe } from '../system-agents/scribe.js';
 
 interface RunnerLogger {
@@ -369,8 +374,7 @@ async function executeStep(
   }
 
   // 普通执行 step：spawn owner agent
-  const agentName = parseAgentMention(step.owner);
-  if (!agentName) {
+  if (!parseAgentMention(step.owner)) {
     failRun(
       db,
       fresh.id,
@@ -379,19 +383,18 @@ async function executeStep(
     return;
   }
 
-  // 找 agent（必须在该 channel 内）
+  // Sprint 8 / Lo-26: 双路径解析 —— 先 byName，再 byRole（让 @implementer 等占位符可用）
   const channelAgents = agentRepo.listInChannel(db, fresh.channel_id);
-  const agent = channelAgents.find(
-    (a) => a.name.toLowerCase() === agentName.toLowerCase(),
-  );
-  if (!agent) {
+  const resolved = resolveOwnerToAgent(channelAgents, step.owner);
+  if (!resolved) {
     failRun(
       db,
       fresh.id,
-      `step "${step.id}": agent "@${agentName}" is not a member of this channel`,
+      formatOwnerResolveError(step.id, step.owner, channelAgents),
     );
     return;
   }
+  const agent = resolved.agent;
 
   // 写 step header system 消息（同时作为 triggerAgent 的 triggerMessage）
   const headerMsg = emitSystemMessage(db, fresh, fresh.thread_id, {

@@ -15,13 +15,16 @@
 
 import type { Database } from 'better-sqlite3';
 import type {
-  Agent,
   Responsibility,
   ResponsibilityAuthority,
   ResponsibilityRole,
 } from '@slark/shared';
 import { agentRepo, responsibilityRepo, workflowRepo } from '../db/repos.js';
-import { parseAgentMention, parseWorkflowYaml } from './yaml-parser.js';
+import {
+  parseAgentMention,
+  parseWorkflowYaml,
+  resolveOwnerToAgent,
+} from './yaml-parser.js';
 
 export interface DeriveResult {
   /** 写入的责任行（已 INSERT） */
@@ -63,14 +66,15 @@ export function deriveResponsibilitiesForWorkflow(
 
     const mention = parseAgentMention(step.owner);
     if (!mention) continue;
-    const agent: Agent | undefined = projectAgents.find(
-      (a) => a.name.toLowerCase() === mention.toLowerCase(),
-    );
 
-    if (agent) {
+    // Sprint 8 / Lo-26: 与 Runner 一致的双路径解析（byName → byRole）。
+    // 注：这里在"全 project agents"范围内（不局限 channel），用法跟 Runner 不同但解析规则一致。
+    const resolved = resolveOwnerToAgent(projectAgents, step.owner);
+
+    if (resolved) {
       newRows.push({
         step_id: step.id,
-        agent_id: agent.id,
+        agent_id: resolved.agent.id,
         role: 'executor',
         authority: 'no_authority',
       });

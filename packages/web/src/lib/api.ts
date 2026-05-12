@@ -163,6 +163,7 @@ export const listAgents = (projectId?: string) => {
 export const getAgent = (id: string) => request<Agent>(`/api/agents/${id}`);
 export const createAgent = (data: {
   name: string;
+  role?: string | null;
   description?: string;
   runtime: Runtime;
   model?: string;

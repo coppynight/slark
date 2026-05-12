@@ -1,14 +1,19 @@
 /**
- * 内置 Workflow 模板（Sprint 2 CP2）
+ * 内置 Workflow 模板（Sprint 2 CP2，Sprint 8 / Lo-26 修复）
  *
  * 3 个模板，对应 PLAN.md Sprint 2 §2.2：
  *   - feature-development: design → await_approval → implement → review → done
  *   - bug-fix:             reproduce → fix → verify → done
  *   - research:            gather → summarize → done
  *
- * 模板的 owner 使用约定俗成的 Agent 名（@Architect / @Dev / @Reviewer），
- * 与 Team Architect 兜底三件套（D-19）一致。当 Project 内不存在同名 Agent 时，
- * Runner 会发出 system error，提示用户调整模板或团队。
+ * Sprint 8 / Lo-26 修复：模板的 `owner` 使用**角色占位符**（@architect / @implementer
+ * / @reviewer / @qa），Runner 通过双路径解析（先 byName，找不到再 byRole）映射到
+ * Team Architect 推荐的具体 agent。这样 Team Architect 自由命名（如 @BackendDev）
+ * 仍然可被 workflow 引用，避免硬编码 @Dev 跟自由命名错位（dogfood r1 阻塞 bug）。
+ *
+ * 后向兼容：
+ *   - 老 project 里手建 agent 名叫 "Dev" / "Reviewer" 等也能命中 byName 通道
+ *   - Team Architect 兜底三件套（D-19，fallbackAgents）的 name + role 现在都对齐
  *
  * 模板首次创建时通过 importBuiltinsForProject() 自动 seed 到 Project；
  * 后续用户可通过 PATCH /api/workflows/:id 修改 YAML，不会被重新覆盖。
@@ -24,14 +29,14 @@ export interface BuiltinTemplate {
 
 const FEATURE_DEVELOPMENT_YAML = `version: "1"
 name: feature-development
-description: Three-stage feature delivery — Architect designs, you approve, Dev implements, Reviewer reviews.
+description: Three-stage feature delivery — architect designs, you approve, implementer implements, reviewer reviews.
 
 trigger:
   command: "/new-feature"
 
 steps:
   - id: design
-    owner: "@Architect"
+    owner: "@architect"
     description: "Produce a design proposal for the requested feature."
     on_complete: await_approval
 
@@ -43,13 +48,13 @@ steps:
     on_reject: design
 
   - id: implement
-    owner: "@Dev"
+    owner: "@implementer"
     input: design
     description: "Implement the approved design."
     on_complete: review
 
   - id: review
-    owner: "@Reviewer"
+    owner: "@reviewer"
     action: approve_or_reject
     input: implement
     description: "Review the implementation; reject sends it back to implement."
@@ -70,18 +75,18 @@ trigger:
 
 steps:
   - id: reproduce
-    owner: "@Dev"
+    owner: "@implementer"
     description: "Reproduce the bug and document the root cause."
     on_complete: fix
 
   - id: fix
-    owner: "@Dev"
+    owner: "@implementer"
     input: reproduce
     description: "Apply a fix and document the change."
     on_complete: verify
 
   - id: verify
-    owner: "@Reviewer"
+    owner: "@reviewer"
     action: approve_or_reject
     input: fix
     description: "Verify the fix; reject sends it back to fix."
@@ -102,12 +107,12 @@ trigger:
 
 steps:
   - id: gather
-    owner: "@Architect"
+    owner: "@architect"
     description: "Gather relevant information about the topic."
     on_complete: summarize
 
   - id: summarize
-    owner: "@Architect"
+    owner: "@architect"
     input: gather
     description: "Summarize findings into actionable notes."
     on_complete: done

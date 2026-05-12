@@ -26,6 +26,11 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/agents', async (req, reply) => {
     const body = req.body as {
       name: string;
+      /**
+       * Sprint 8 / Lo-26: 团队角色标签（implementer / reviewer / qa / architect / scribe / ...）。
+       * 用于 workflow YAML 占位符（@implementer 等）路由。可选；缺失走 byName 兼容路径。
+       */
+      role?: string | null;
       description?: string | null;
       runtime: Runtime;
       model?: string | null;

@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS channels (
 CREATE TABLE IF NOT EXISTS agents (
   id              TEXT PRIMARY KEY,
   name            TEXT NOT NULL UNIQUE,
+  -- Sprint 8 / Lo-26 修复：团队角色标签（implementer / reviewer / qa / architect / scribe / ...）。
+  -- Workflow YAML 用 @implementer 等占位符按 role 解析到具体 agent。NULL = legacy / 用户未指定。
+  role            TEXT,
   avatar          TEXT,
   description     TEXT,
   runtime         TEXT NOT NULL,
@@ -38,6 +41,8 @@ CREATE TABLE IF NOT EXISTS agents (
   env_vars_json   TEXT,
   created_at      INTEGER NOT NULL
 );
+-- Sprint 8 / Lo-26: idx_agents_role 创建放在 applyMigrations（db/index.ts）里，
+-- 因为它依赖 role 列，而老 db（v1）需要先 ALTER TABLE 才能建索引。
 
 -- =============================================================================
 -- 3. channel_agents (many-to-many)

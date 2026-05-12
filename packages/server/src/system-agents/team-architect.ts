@@ -182,7 +182,7 @@ function buildTeamArchitectPrompt(input: SuggestTeamInput, defaultRuntime: Runti
     'You are the Team Architect for a new AI engineering team in Slark (a local AI Team OS).',
     '',
     'Given a project goal and workspace path, recommend a small focused team of 3 to 5 AI agents with clear roles.',
-    'Typical shapes: Architect + Dev + Reviewer, or a richer mix for specific domains.',
+    'Typical shapes: Architect + Implementer + Reviewer, or a richer mix for specific domains.',
     '',
     `Project goal: ${input.goal}`,
     `Workspace path: ${input.workspace_path}`,
@@ -190,19 +190,42 @@ function buildTeamArchitectPrompt(input: SuggestTeamInput, defaultRuntime: Runti
     '',
     ...modelCatalog,
     '',
+    '## Standard role labels (used by workflow YAML for routing)',
+    '',
+    'Each agent MUST have a `role` chosen from the standard set below. The role is a',
+    'short lowercase keyword used by built-in workflows (e.g. /new-feature) to route',
+    'steps to the right team member. Use the agent `name` for specialization (e.g.',
+    '"BackendDev") and the `role` for routing (e.g. "implementer").',
+    '',
+    'Standard roles (use these exact lowercase strings):',
+    '  - "architect"   — produces design, API specs, decisions; usually drives /new-feature step 1',
+    '  - "implementer" — writes the actual code; required by /new-feature and /bug-fix',
+    '  - "reviewer"    — reviews code/spec for correctness, security, maintainability',
+    '  - "qa"          — integration tests, acceptance criteria, end-to-end verification',
+    '  - "scribe"      — records decisions / lessons (optional, system agent covers this)',
+    '',
+    'HARD REQUIREMENT: the team MUST collectively cover BOTH "implementer" AND "reviewer".',
+    'These two roles are referenced by all built-in workflows; missing either will block',
+    'feature/bug workflows from running. For /new-feature an "architect" is also strongly',
+    'recommended.',
+    '',
+    'You MAY assign the same role to multiple agents (e.g. two implementers with different',
+    'specializations like "BackendDev" + "FrontendDev"); the first matching agent will be',
+    'picked by default. A specialized name is good — it still routes via the standard role.',
+    '',
     'Reply with STRICT JSON ONLY. No markdown fences, no commentary, no prose.',
     'Schema:',
     '{',
     '  "agents": [',
     '    {',
-    '      "name": "Architect",                  // short, PascalCase or kebab-case',
-    '      "role": "Architect",                   // one-word role label',
-    '      "description": "...",                  // 1-3 sentences, written as the agent\'s system prompt in second person',
-    `      "runtime": "${defaultRuntime}",                   // use "${defaultRuntime}" for this local setup`,
-    `      "model": "${defaultRuntime === 'codex' ? 'gpt-5.5' : 'claude-opus-4-7'}",            // pick from the catalog above`,
-    '      "reasoning": "high",                   // low / medium / high / extra-high / max',
-    '      "thinking": true,                      // true / false / null (null = model default)',
-    '      "context": "1m"                        // "300k" / "1m" / null (null = model default)',
+    '      "name": "Architect",                   // short, PascalCase or kebab-case; specialized name OK',
+    '      "role": "architect",                    // REQUIRED: one of "architect"/"implementer"/"reviewer"/"qa"/"scribe"',
+    '      "description": "...",                   // 1-3 sentences, written as the agent\'s system prompt in second person',
+    `      "runtime": "${defaultRuntime}",                    // use "${defaultRuntime}" for this local setup`,
+    `      "model": "${defaultRuntime === 'codex' ? 'gpt-5.5' : 'claude-opus-4-7'}",             // pick from the catalog above`,
+    '      "reasoning": "high",                    // low / medium / high / extra-high / max',
+    '      "thinking": true,                       // true / false / null (null = model default)',
+    '      "context": "1m"                         // "300k" / "1m" / null (null = model default)',
     '    }',
     '  ],',
     '  "rationale": "one paragraph explaining why this team and these model choices fit the goal"',
@@ -280,7 +303,9 @@ function parseTeamSuggestion(raw: string, defaultRuntime: Runtime): Omit<TeamSug
 
     agents.push({
       name,
-      role: role || name,
+      // Sprint 8 / Lo-26: role 用于 workflow YAML 占位符（@implementer 等）路由，必须 lowercase。
+      // LLM 输出可能写 "Implementer" / "Reviewer" / "ImpLementer"，统一 normalize。
+      role: normalizeRole(role || name),
       description,
       runtime: runtimeNormalized,
       model,
@@ -292,9 +317,78 @@ function parseTeamSuggestion(raw: string, defaultRuntime: Runtime): Omit<TeamSug
 
   if (agents.length === 0) return null;
 
+  // Sprint 8 / Lo-26: 硬校验团队必须同时覆盖 implementer + reviewer，否则 builtin workflow
+  // 会在 step 2/3 fail。不满足时返回 null，让 suggestTeam 走 fallback 三件套。
+  const missing = checkRequiredRoles(agents);
+  if (missing.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[team-architect] team missing required roles: ${missing.join(', ')}; agents: ${agents
+        .map((a) => `${a.name}(${a.role})`)
+        .join(', ')}`,
+    );
+    return null;
+  }
+
   const rationale = typeof o.rationale === 'string' ? o.rationale.trim() : '';
 
   return { agents, rationale };
+}
+
+const STANDARD_ROLES = new Set([
+  'architect',
+  'implementer',
+  'reviewer',
+  'qa',
+  'scribe',
+]);
+
+function normalizeRole(raw: string): string {
+  const lower = raw.trim().toLowerCase();
+  if (STANDARD_ROLES.has(lower)) return lower;
+  // 常见同义词映射 — 让 LLM 飘的输出也能落到 builtin workflow 可用的角色
+  const synonyms: Record<string, string> = {
+    dev: 'implementer',
+    developer: 'implementer',
+    engineer: 'implementer',
+    coder: 'implementer',
+    backend: 'implementer',
+    frontend: 'implementer',
+    'backend-dev': 'implementer',
+    'frontend-dev': 'implementer',
+    backenddev: 'implementer',
+    frontenddev: 'implementer',
+    fullstack: 'implementer',
+    code: 'implementer',
+    coding: 'implementer',
+    impl: 'implementer',
+    review: 'reviewer',
+    'code-reviewer': 'reviewer',
+    codereviewer: 'reviewer',
+    security: 'reviewer',
+    auditor: 'reviewer',
+    test: 'qa',
+    tester: 'qa',
+    quality: 'qa',
+    integration: 'qa',
+    qaintegration: 'qa',
+    'qa-integration': 'qa',
+    designer: 'architect',
+    design: 'architect',
+    pm: 'architect',
+    lead: 'architect',
+    archivist: 'scribe',
+    recorder: 'scribe',
+  };
+  if (synonyms[lower]) return synonyms[lower];
+  // free-form 角色保留（agent.role 仍是 lowercase），但 workflow 占位符不会命中它
+  return lower;
+}
+
+function checkRequiredRoles(agents: TeamSuggestionAgent[]): string[] {
+  const roleSet = new Set(agents.map((a) => a.role));
+  const required = ['implementer', 'reviewer'];
+  return required.filter((r) => !roleSet.has(r));
 }
 
 /** 去掉 assistant 有时会加的 ```json ... ``` 包裹 */
@@ -355,7 +449,7 @@ function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
   return [
     {
       name: 'Architect',
-      role: 'Architect',
+      role: 'architect',
       description:
         'You design APIs, data models, and module boundaries. Before proposing a solution, skim the codebase to understand existing conventions. Focus on clarity and maintainability over cleverness.',
       runtime,
@@ -366,7 +460,7 @@ function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
     },
     {
       name: 'Dev',
-      role: 'Developer',
+      role: 'implementer',
       description:
         "You implement features based on the Architect's design. Write clean, typed code with tests. Always wrap async calls in try/catch and surface errors with structured context.",
       runtime,
@@ -377,7 +471,7 @@ function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
     },
     {
       name: 'Reviewer',
-      role: 'Reviewer',
+      role: 'reviewer',
       description:
         'You review code for correctness, security, and maintainability. Call out issues directly and suggest concrete fixes. Do not rubber-stamp; push back when something feels off.',
       runtime,

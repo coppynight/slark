@@ -6,7 +6,7 @@
  */
 
 import { parse as parseYaml } from 'yaml';
-import type { WorkflowDefinition, WorkflowStep } from '@slark/shared';
+import type { Agent, WorkflowDefinition, WorkflowStep } from '@slark/shared';
 
 export class WorkflowYamlError extends Error {
   constructor(message: string) {
@@ -158,4 +158,51 @@ function optString(v: unknown): string | undefined {
 export function parseAgentMention(owner: string): string | null {
   if (owner.startsWith('@')) return owner.slice(1);
   return null;
+}
+
+/**
+ * Sprint 8 / Lo-26 修复：把 workflow step.owner（`@X`）解析到 channel 内具体 agent。
+ *
+ * 双路径解析：
+ *   1. 先按 agent.name 大小写不敏感匹配（保留 pre-v0.3 行为，兼容 `@Architect` 等命名引用）
+ *   2. 退化按 agent.role 大小写不敏感匹配（让 builtin templates 可用 `@implementer` 这种角色占位符）
+ *
+ * 命中后 `matchedBy` 标识匹配通道，用于 telemetry / 错误信息构造。
+ */
+export function resolveOwnerToAgent(
+  channelAgents: Agent[],
+  ownerRef: string,
+): { agent: Agent; matchedBy: 'name' | 'role' } | null {
+  const ref = parseAgentMention(ownerRef);
+  if (!ref) return null;
+  const lower = ref.toLowerCase();
+  const byName = channelAgents.find((a) => a.name.toLowerCase() === lower);
+  if (byName) return { agent: byName, matchedBy: 'name' };
+  const byRole = channelAgents.find(
+    (a) => typeof a.role === 'string' && a.role.toLowerCase() === lower,
+  );
+  if (byRole) return { agent: byRole, matchedBy: 'role' };
+  return null;
+}
+
+/**
+ * 构造可读的"找不到 agent"错误：列出当前 team 名字+角色，便于 UI 提示用户调整。
+ */
+export function formatOwnerResolveError(
+  stepId: string,
+  ownerRef: string,
+  channelAgents: Agent[],
+): string {
+  const ref = parseAgentMention(ownerRef) ?? ownerRef;
+  if (channelAgents.length === 0) {
+    return `step "${stepId}": no agents in this channel (workflow needs @${ref})`;
+  }
+  const summary = channelAgents
+    .map((a) => (a.role ? `@${a.name} (role=${a.role})` : `@${a.name}`))
+    .join(', ');
+  return (
+    `step "${stepId}": no agent matches @${ref} ` +
+    `(by name or role). Current team: ${summary}. ` +
+    `Hint: rename an agent to @${ref} or set its role="${ref}".`
+  );
 }

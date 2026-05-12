@@ -16,7 +16,8 @@
  *
  * Schema 版本：
  *   - per-project schema 内部维护 schema_version，写在 meta 表
- *   - 当前版本 1（per-project storage 起步）
+ *   - v1: per-project storage 起步
+ *   - v2: Sprint 8 / Lo-26 修复 —— agents 表加 `role` 字段 + `idx_agents_role` 索引
  */
 
 import Database from 'better-sqlite3';
@@ -33,7 +34,7 @@ const SCHEMA_CANDIDATES = [
 ];
 const SCHEMA_PATH = SCHEMA_CANDIDATES.find((p) => existsSync(p));
 
-const PER_PROJECT_SCHEMA_VERSION = '1';
+const PER_PROJECT_SCHEMA_VERSION = '2';
 const POOL_MAX = 20;
 const IDLE_CLOSE_MS = 30 * 60 * 1000; // 30 min
 
@@ -73,21 +74,27 @@ export function openProjectDb(workspacePath: string): DB {
   const schemaSql = readFileSync(SCHEMA_PATH, 'utf-8');
   db.exec(schemaSql);
 
-  // 写入 / 校验 schema_version
   const stmt = db.prepare<[string], { value: string }>(
     'SELECT value FROM meta WHERE key = ?',
   );
   const row = stmt.get('schema_version');
-  if (!row) {
-    db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(
-      'schema_version',
-      PER_PROJECT_SCHEMA_VERSION,
-    );
-  } else if (row.value !== PER_PROJECT_SCHEMA_VERSION) {
-    db.prepare('UPDATE meta SET value = ? WHERE key = ?').run(
-      PER_PROJECT_SCHEMA_VERSION,
-      'schema_version',
-    );
+  // 用 fromVersion='0' 兜底 fresh db（meta 表里还没记录）；fresh db 也要跑 applyMigrations
+  // 以确保依赖新列的 INDEX 被创建（这些 INDEX 不能直接放 schema.sql，否则老 db 升级时会因
+  // "列不存在"先于 ALTER TABLE 报错）。applyMigrations 内部所有 DDL 都是幂等的。
+  const fromVersion = row?.value ?? '0';
+  if (fromVersion !== PER_PROJECT_SCHEMA_VERSION) {
+    applyMigrations(db, fromVersion, PER_PROJECT_SCHEMA_VERSION);
+    if (!row) {
+      db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(
+        'schema_version',
+        PER_PROJECT_SCHEMA_VERSION,
+      );
+    } else {
+      db.prepare('UPDATE meta SET value = ? WHERE key = ?').run(
+        PER_PROJECT_SCHEMA_VERSION,
+        'schema_version',
+      );
+    }
   }
 
   pool.set(norm, { db, workspacePath: norm, lastUsed: Date.now() });
@@ -150,6 +157,34 @@ export function closeAllDbs(): void {
     }
   }
   pool.clear();
+}
+
+/**
+ * 轻量 in-place migration。schema.sql 用 `CREATE ... IF NOT EXISTS` 处理新表/新索引；
+ * 已存在表加列时这里补 ALTER TABLE 兜底（schema.sql 已声明的列在 fresh db 自然存在）。
+ *
+ * 设计约束：
+ *   - 每条 migration **必须幂等** —— 老 db / fresh db 都会跑同一条迁移
+ *   - 依赖"新列"的 INDEX 必须放在这里（不能放 schema.sql），因为老 db 要先 ALTER TABLE
+ *     才能建索引；schema.sql 一次性 exec 时顺序无法保证列在前、索引在后
+ */
+function applyMigrations(db: DB, fromVersion: string, toVersion: string): void {
+  // v1 → v2 / fresh → v2: agents 加 role 字段 + idx_agents_role 索引
+  if (fromVersion === '1' || fromVersion === '0') {
+    try {
+      db.exec('ALTER TABLE agents ADD COLUMN role TEXT;');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/duplicate column name/i.test(msg)) {
+        throw e;
+      }
+    }
+    // 索引创建幂等（IF NOT EXISTS），fresh db / 老 db 都跑一次确保索引存在
+    db.exec(
+      'CREATE INDEX IF NOT EXISTS idx_agents_role ON agents(role) WHERE role IS NOT NULL;',
+    );
+  }
+  void toVersion;
 }
 
 function evictIfNeeded(): void {

@@ -55,6 +55,12 @@ export interface Channel {
 export interface Agent {
   id: string;
   name: string;
+  /**
+   * Sprint 8 / Lo-26 修复：团队角色标签（implementer / reviewer / qa / architect / scribe / ...）。
+   * Workflow YAML 占位符（@implementer 等）按 role 解析到具体 agent，避免 builtin template 硬编码 name 跟 Team Architect 自由命名错位。
+   * `null` = legacy agent / 用户手建未指定；Runner 回退到 byName 匹配。
+   */
+  role: string | null;
   avatar: string | null;
   description: string | null;
   runtime: Runtime;
