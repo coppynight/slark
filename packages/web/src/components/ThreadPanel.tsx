@@ -14,6 +14,7 @@ import { useMessagesStore } from '../stores/messages';
 import { useAgentsStore } from '../stores/agents';
 import { wsClient } from '../lib/ws';
 import { useChannelCommands } from '../lib/useChannelCommands';
+import { ActiveAgentsBanner } from './ActiveAgentsBanner';
 import { ApprovalCard } from './ApprovalCard';
 import { Message } from './Message';
 import { MessageInput } from './MessageInput';
@@ -141,6 +142,7 @@ export function ThreadPanel({ channelId }: Props) {
         </button>
       </header>
 
+      <ActiveAgentsBanner channelId={channelId} />
       <WorkflowProgress channelId={channelId} threadId={threadId} />
 
       <div className="flex-1 overflow-y-auto px-4 py-3">

@@ -13,11 +13,27 @@ import { listAgents } from '../lib/api';
  * - `getChannelRunStatus(agentId, channelId)`: 该 channel 当前 run 状态（无活跃 run 返回 undefined）
  */
 
+/** Sprint 8 / Lo-22: 单条活跃 run 的运行时元数据，用于 banner 显示 elapsed time */
+export interface ActiveRun {
+  agentId: string;
+  channelId: string;
+  status: AgentRunStatus;
+  /** 该 status 第一次进入活跃态（thinking 或 working）的时间戳；status 切换不重置 */
+  startedAt: number;
+}
+
 interface AgentsState {
   agents: Agent[];
   loaded: boolean;
   /** Per-channel 活跃 run 状态：Map<agent_id, Map<channel_id, status>> */
   runByAgentChannel: Map<string, Map<string, AgentRunStatus>>;
+  /**
+   * Sprint 8 / Lo-22: per (agent, channel) 第一次进入活跃态的时间戳。
+   * 用于 Active Agents Banner 显示 "Architect is thinking... (0:42)"。
+   * status 在 thinking ↔ working 切换时**不重置**，让用户看到连续累加的等待感。
+   * idle / 清除 run 时也清除这个 entry。
+   */
+  runStartedAtByAgentChannel: Map<string, Map<string, number>>;
 
   refresh: () => Promise<void>;
   upsert: (agent: Agent) => void;
@@ -30,6 +46,8 @@ interface AgentsState {
   getDerivedStatus: (agentId: string) => AgentStatus;
   /** 该 agent 在指定 channel 的 run 状态（无活跃 run 返回 undefined） */
   getChannelRunStatus: (agentId: string, channelId: string) => AgentRunStatus | undefined;
+  /** Sprint 8 / Lo-22: 该 channel 内所有活跃 (status != idle) 的 runs */
+  getActiveRunsInChannel: (channelId: string) => ActiveRun[];
   getById: (id: string) => Agent | undefined;
 }
 
@@ -39,6 +57,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   agents: [],
   loaded: false,
   runByAgentChannel: new Map(),
+  runStartedAtByAgentChannel: new Map(),
 
   refresh: async () => {
     const agents = await listAgents();
@@ -58,9 +77,12 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
     set((s) => {
       const nextMap = new Map(s.runByAgentChannel);
       nextMap.delete(id);
+      const nextStart = new Map(s.runStartedAtByAgentChannel);
+      nextStart.delete(id);
       return {
         agents: s.agents.filter((a) => a.id !== id),
         runByAgentChannel: nextMap,
+        runStartedAtByAgentChannel: nextStart,
       };
     }),
 
@@ -70,7 +92,26 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
       const inner = new Map(nextMap.get(agentId) ?? new Map<string, AgentRunStatus>());
       inner.set(channelId, status);
       nextMap.set(agentId, inner);
-      return { runByAgentChannel: nextMap };
+
+      // Sprint 8 / Lo-22: 仅当 active run **首次进入** thinking/working 时记 startedAt；
+      // thinking → working 切换不重置（保留连续等待感）
+      const nextStart = new Map(s.runStartedAtByAgentChannel);
+      const innerStart = new Map(
+        nextStart.get(agentId) ?? new Map<string, number>(),
+      );
+      const isActive = status === 'thinking' || status === 'working';
+      if (isActive && !innerStart.has(channelId)) {
+        innerStart.set(channelId, Date.now());
+        nextStart.set(agentId, innerStart);
+      } else if (!isActive) {
+        innerStart.delete(channelId);
+        if (innerStart.size === 0) nextStart.delete(agentId);
+        else nextStart.set(agentId, innerStart);
+      }
+      return {
+        runByAgentChannel: nextMap,
+        runStartedAtByAgentChannel: nextStart,
+      };
     }),
 
   clearChannelRun: (agentId, channelId) =>
@@ -82,7 +123,19 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
       nextInner.delete(channelId);
       if (nextInner.size === 0) nextMap.delete(agentId);
       else nextMap.set(agentId, nextInner);
-      return { runByAgentChannel: nextMap };
+      // 同步清 startedAt
+      const nextStart = new Map(s.runStartedAtByAgentChannel);
+      const innerStart = nextStart.get(agentId);
+      if (innerStart && innerStart.has(channelId)) {
+        const nextInnerStart = new Map(innerStart);
+        nextInnerStart.delete(channelId);
+        if (nextInnerStart.size === 0) nextStart.delete(agentId);
+        else nextStart.set(agentId, nextInnerStart);
+      }
+      return {
+        runByAgentChannel: nextMap,
+        runStartedAtByAgentChannel: nextStart,
+      };
     }),
 
   isAgentActive: (agentId) => {
@@ -111,6 +164,19 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
 
   getChannelRunStatus: (agentId, channelId) => {
     return get().runByAgentChannel.get(agentId)?.get(channelId);
+  },
+
+  getActiveRunsInChannel: (channelId) => {
+    const state = get();
+    const result: ActiveRun[] = [];
+    for (const [agentId, inner] of state.runByAgentChannel.entries()) {
+      const status = inner.get(channelId);
+      if (!status || (status !== 'thinking' && status !== 'working')) continue;
+      const startedAt =
+        state.runStartedAtByAgentChannel.get(agentId)?.get(channelId) ?? Date.now();
+      result.push({ agentId, channelId, status, startedAt });
+    }
+    return result.sort((a, b) => a.startedAt - b.startedAt);
   },
 
   getById: (id) => get().agents.find((a) => a.id === id),

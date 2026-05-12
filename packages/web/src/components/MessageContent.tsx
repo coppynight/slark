@@ -112,6 +112,21 @@ export const MessageContent = memo(function MessageContent({ content, isStreamin
   };
   const ctx: InlineContext = { onTaskClick };
 
+  // Sprint 8 / Lo-22：streaming 但内容为空时显式提示，避免 60s cold start 黑屏感
+  const isEmpty = content.trim().length === 0;
+  if (isStreaming && isEmpty) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="inline-flex items-center gap-2 px-2 py-1 border-2 border-black rounded bg-[#fff8d8] font-mono text-xs"
+      >
+        <Spinner />
+        <span>Generating…</span>
+      </div>
+    );
+  }
+
   return (
     <div className="prose prose-sm max-w-none text-black leading-relaxed">
       <ReactMarkdown
@@ -193,3 +208,21 @@ export const MessageContent = memo(function MessageContent({ content, isStreamin
     </div>
   );
 });
+
+function Spinner() {
+  return (
+    <svg
+      className="animate-spin"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" opacity="0.25" />
+      <path d="M21 12a9 9 0 0 0-9-9" />
+    </svg>
+  );
+}

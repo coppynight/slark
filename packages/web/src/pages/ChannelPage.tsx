@@ -11,6 +11,7 @@ import { projectChannelPath, projectIndexPath, projectSettingsPath } from '../li
 import { useChannelCommands } from '../lib/useChannelCommands';
 import { useWorkflowsStore } from '../stores/workflows';
 import { ChannelHeader } from '../components/ChannelHeader';
+import { ActiveAgentsBanner } from '../components/ActiveAgentsBanner';
 import { MessageList } from '../components/MessageList';
 import { MessageInput } from '../components/MessageInput';
 import { ThreadPanel } from '../components/ThreadPanel';
@@ -201,6 +202,7 @@ export function ChannelPage() {
           onEditChannel={() => setSettingsOpen({ open: true, tab: 'settings' })}
           onManageMembers={() => setSettingsOpen({ open: true, tab: 'members' })}
         />
+        <ActiveAgentsBanner channelId={channelId} />
         {(projectAgentCount === 0 || goalIsPlaceholder) && (
           <BuildTeamBanner
             projectName={projectName}
