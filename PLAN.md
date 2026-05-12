@@ -1,10 +1,11 @@
 # Slark - Programmable AI Team OS（战术执行计划）
 
 > **战略层**：[`docs/product-brief.md`](docs/product-brief.md) v1.0.1
+> **当前聚焦**：[`docs/focus-core-loop.md`](docs/focus-core-loop.md) ← **前期阶段性收敛锚点（2026-05-12 生效）**
 > **当前状态**：[`docs/project-status.md`](docs/project-status.md) ← 关心"进展到哪了"看这里
 > **本文件**：当前 Sprint + 未来 Sprint 的范围与验收（**不维护"已完成"详细清单**）
 >
-> 冲突时优先级：`product-brief.md` > `PLAN.md` > 其他
+> 冲突时优先级：`product-brief.md` > `focus-core-loop.md` > `PLAN.md` > 其他
 
 ## 文档地图
 
@@ -12,6 +13,7 @@
 |------|------|------|
 | [`docs/project-status.md`](docs/project-status.md) | **状态** | **唯一状态源**：当前 Sprint / 阻塞 / 技术债 / 下一步 |
 | [`docs/product-brief.md`](docs/product-brief.md) | 战略 | 产品定位 / 6 层架构 / 关键决策 / 非目标 |
+| [`docs/focus-core-loop.md`](docs/focus-core-loop.md) | **聚焦** | **前期阶段性收敛**：核心闭环 7 步 / 现状评估 / Sprint 8+ 重排建议 / 退出条件 |
 | `PLAN.md`（本文件） | 战术 | 当前 + 未来 Sprint 的范围与验收 |
 | [`docs/sprint1-milestone.md`](docs/sprint1-milestone.md) | 历史 | Sprint 1 交付记录与手动验收 runbook |
 | [`docs/technical-decisions.md`](docs/technical-decisions.md) | 实现 | 默认决策（D-N）/ 常量 / 状态机 |
@@ -228,21 +230,36 @@ CP1 ~ CP6 已交付：`workflow_sessions` 表（schema_version → 9）+ Facilit
 
 ## Sprint 8+: 远期路线
 
-按 [`docs/product-brief.md`](docs/product-brief.md) §7（P2 R-18~R-25）+ [`docs/clawteam-comparison.md`](docs/clawteam-comparison.md) B-N 排序：
+> **⚠ 前期聚焦中（2026-05-12 起生效）**：当前阶段按 [`docs/focus-core-loop.md`](docs/focus-core-loop.md) 收敛于"核心闭环打磨"，下表的"广度扩展"项已显式 `Hold` 到 §"Sprint 8+ 重排（前期聚焦下）" 之后。
+>
+> 退出条件、判断准则、Sprint 8/9/10 主题见 [`focus-core-loop.md`](docs/focus-core-loop.md) §4 / §7。
 
-| 项目 | 描述 | 优先级 |
+### Sprint 8+ 重排（前期聚焦下）
+
+| 顺序 | Sprint 候选 | 主题 | 关键交付 | 对应闭环 |
+|------|---------|------|---------|---------|
+| **Sprint 8** | 反馈姿势 + 真实任务体验 | "把 L4/L5 跑顺" | 消息 inline 👍/👎 + reason / `agent_feedback.source='inline'` / TD-8 长输出策略 / TD-12 running 状态 override / Activity 降噪 | L4 + L5 |
+| **Sprint 9** | 即时回路 + dogfood 第一轮 | "把 L5→L6 接成短回路" | Coach 阈值即时触发 / 右侧 rail panel "Coach suggested edit" / `learn-fast-loop.html` 原型落地 / TD-9 `/reject` 沉淀进 lessons | L5→L6 |
+| **Sprint 10** | 团队级视图 + Worktree | "把 L6→L7 闭上" | Team Health 仪表盘 / Project Intelligence 升级为"学习速率"视图 / **B-1** Worktree 隔离让多 Agent 真正并发 | L6→L7 + L4 |
+| Sprint 11+ | 回归广度扩展 | "打开外延" | 回到下表 R-N / B-N 原排序 | 跨闭环 |
+
+### 后期广度路线（Sprint 11+，前期 Hold）
+
+| 项目 | 描述 | 优先级（前期 Hold 后） |
 |-----|------|--------|
-| **R-18** Codex / Claude Code 多 runtime 适配 | 接入 Codex / Claude / Kimi / Copilot / Gemini Adapter | 🟡 中 |
-| **R-19** 跨 Project 全局视图 | `/threads` / `/tasks` / `/saved` Kanban | 🟡 中 |
+| **R-18** Codex / Claude Code 多 runtime 适配 | 接入 Claude / Kimi / Copilot / Gemini Adapter（Codex / Cursor SDK 已落） | 🟡 中 |
+| **R-19** 跨 Project 全局视图 Kanban 升级 | `/threads` / `/tasks` / `/saved` Kanban 视觉打磨 | 🟡 中 |
 | **R-20** Team Memory（Project 级 ground rules）| 用 lessons 表已半实现 | 🟢 低 |
 | **R-21** Agent / Workflow Template Marketplace | 用户可分享 Workflow YAML / Team Template | 🟢 低 |
 | **R-22** `.slark/team.yaml` Project 级 Agent 定义 | git 可追踪 | 🟢 低 |
 | **R-23** Electron / Tauri 打包 | 桌面应用 + 系统托盘 | 🟢 低 |
 | **R-24** Agent 之间主动 DM | 非 @mention 触发 | 🟢 低 |
 | **R-25** Project 拖拽排序、收藏、归档 | UX 打磨 | 🟢 低 |
-| **B-1** Worktree 多 Agent 隔离 | 解决 K-5 / W-1 | 🔴 高（多 Agent 真正并发改代码时必须）|
-| **B-3** 任务依赖图（`blocked_by`）| Task 之间显式依赖 + 自动 unblock | 🟡 中 |
+| **B-3** 任务依赖图（`blocked_by`）| Task 之间显式依赖 + 自动 unblock | 🟡 中（前期可顺手做） |
 | **B-6** Tiled Live View（多 Agent 并排实时输出）| Slark 相对 ClawTeam 的差异化机会 | 🟡 中 |
+| Facilitator 多轮真对话 | 升级 Sprint 7 single-shot | 🟡 中（前期 G3 之后评估） |
+
+> **B-1 Worktree 已上提到 Sprint 10**：它是 L4 "真实多 Agent 并发改代码" 的前置，属于核心闭环必需，不押到后期。
 
 ---
 
@@ -268,3 +285,4 @@ CP1 ~ CP6 已交付：`workflow_sessions` 表（schema_version → 9）+ Facilit
 | v1.0.1 | 2026-04-23 | 同步 v1.0.1 Review 决议：Sprint 1 工期弹性、删库迁移、Sprint 4 拆分 Sprint 7 |
 | **v1.1** | 2026-04-30 | **文档体系简化**：状态收敛到 `docs/project-status.md`；Sprint 1 详细任务清单移至 `docs/sprint1-milestone.md`；v0 MVP 已交付清单折叠为一句话；当前焦点改为 Sprint 2 |
 | v1.2 | 2026-04-30 | Sprint 1~7 全部交付，MVP 完成；新增 Sprint 4-ext（Cursor SDK Adapter 旁路）落地记录 |
+| **v1.3** | 2026-05-12 | **前期聚焦核心闭环**：引入 [`docs/focus-core-loop.md`](docs/focus-core-loop.md) 作为阶段性收敛锚点；Sprint 8+ 章节重排（"广度优先" → "深度优先"），Sprint 8/9/10 主题改为 L4/L5/L6/L7 闭环打磨；R-N 广度路线推迟到 Sprint 11+ |

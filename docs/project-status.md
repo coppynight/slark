@@ -4,7 +4,7 @@
 > 询问"当前进展到哪了 / 下一步做什么 / 还有什么阻塞"时，只看这一份。
 > 其他文档（PLAN.md / product-brief.md / technical-decisions.md）不维护状态，只维护内容。
 
-**最近更新**：2026-05-08（**Per-Project Storage 重构 Sprint A+B+C 全部落地**）
+**最近更新**：2026-05-12（**方向收敛：前期聚焦核心闭环**——引入 [`focus-core-loop.md`](focus-core-loop.md)）
 
 ---
 
@@ -12,11 +12,21 @@
 
 | 项 | 值 |
 |---|---|
-| 当前 Sprint | **Per-Project Storage 重构 Sprint A+B+C 完成**（D-21 ~ D-25） |
-| 下一阶段 | 验收 + squash merge `feat/per-project-storage` 回 `main`；之后 Sprint 8+ 远期路线 |
-| 最近 Sprint | Per-Project Storage 重构（Sprint A 后端 / Sprint B UX / Sprint C 知识 jsonl + 跨 project 全局视图 + WS 全局事件 + 文档同步） |
-| 当前分支 | `feat/per-project-storage` |
-| 类型检查 | ✅ pnpm -r typecheck 全绿；smoke 启动 + 端到端 open project 流程跑通 |
+| 当前阶段 | **前期聚焦核心闭环打磨**（[`focus-core-loop.md`](focus-core-loop.md) v0.1 生效） |
+| 最近 Sprint | Per-Project Storage 重构 Sprint A+B+C 已完成（D-21~D-25，merged 到 `main`） |
+| 下一阶段 | **Sprint 8 候选**：反馈姿势（L5）+ 真实任务体验（L4）—— 见 [`focus-core-loop.md`](focus-core-loop.md) §6 |
+| 前置工作 | **dogfood 第一轮**：用 Slark 自己跑一个真实任务，记录 7 步闭环卡点，灌入 Sprint 8 backlog |
+| 当前分支 | `main` |
+| 类型检查 | ✅ pnpm -r typecheck 全绿 |
+
+### 2026-05-12 方向收敛摘要
+
+基于 [`focus-core-loop.md`](focus-core-loop.md)：
+
+- **聚焦**：把 L1→L7 七步使用闭环（打开项目 / 创建团队 / 初始 Workflow / 运行真实任务 / 过程反馈 / 结果反馈+迭代团队 / 项目高质量迭代）打磨到日常顺手
+- **现状评估**：L1~L4 黄绿、**L5 红、L6 黄、L7 红**——卡点在"反馈与迭代"内回路（异步、单向、入口深）
+- **重排**：Sprint 8/9/10 改为深度优先（反馈姿势→即时回路→团队级视图+Worktree）；R-18/19/21/22/23/24/25 等广度项推迟到 Sprint 11+
+- **退出条件**：闭环可演示 + 反馈姿势日常化 + 团队级视图可读（详见 `focus-core-loop.md` §7）
 
 ### Per-Project Storage Sprint A+B+C 已交付摘要（2026-05-08）
 
@@ -184,24 +194,38 @@ Sprint 3 完成后剩余的延后项（详见 [`sprint3-milestone.md`](sprint3-m
 
 ## 5. 下一步建议
 
-MVP（Sprint 1~7）全部完成。后续按需选择：
+MVP（Sprint 1~7）已交付。**2026-05-12 起方向收敛于"前期聚焦核心闭环"**（详见 [`focus-core-loop.md`](focus-core-loop.md)）。
 
-### A. Sprint 8+ 远期路线（按用户优先级）
+### A. 立即（本周）：dogfood 第一轮
 
-- **Facilitator 真多轮对话**：升级 Sprint 7 single-shot 为多轮 spawn + thread 化（涉及 thread 编排 + token 预算 + 中断恢复）
-- **R-18 多 runtime 适配**：当前仅 Cursor；增加 Codex / Claude / Kimi / Copilot / Gemini Adapter
-- **R-19 跨 Project 全局视图**：Kanban / Threads / Tasks 跨 Project 聚合
-- **B-1 Worktree 多 Agent 隔离**：解决多 Agent 并发改同一 repo 冲突
-- **B-3 任务依赖图**：`tasks.blocked_by` + 自动 unblock
-- **Agent / Workflow Marketplace**：分享 YAML / Team Template
-- **跨 Project Description / Lessons 迁移**：演化经验复用
+用 Slark 自己跑一个真实任务，验证 L1→L7 七步闭环的实际体验：
 
-### B. 持续运维项
+- 选一个**真实可交付**的项目内题目（不是 demo / 不是玩具）
+- 全程使用 Slark 推进，记录每一步的"卡 / 别扭 / 想给反馈但没地方给"
+- 产出 `docs/dogfood/2026-05-12-round-1.md` 报告 → 直接驱动 Sprint 8 backlog
 
-- 文档同步 / dependency 升级 / lint warnings 清理（可选）
-- 真实使用反馈驱动 UX 打磨（无固定计划）
+### B. Sprint 8（候选）：反馈姿势 + 真实任务体验
 
-详见 [`PLAN.md` §Sprint 8+](../PLAN.md#sprint-8-远期路线)。
+按 [`focus-core-loop.md`](focus-core-loop.md) §6：
+
+- **G1 反馈姿势**（L5 红 → 黄）：消息级 inline 👍/👎 + reason 入口；`agent_feedback.source='inline'`；落地 `learn-fast-loop.html` 视觉
+- **G3 真实任务体验**（L4 黄 → 绿）：TD-8 长输出 token 预算策略 / TD-12 running 状态 override / 单消息 timeout 自适应 / Activity 降噪
+
+### C. Sprint 9（候选）：即时回路
+
+- **G2 即时回路**（L5→L6）：Coach 从 24h cron 改为阈值即时触发；右侧 rail panel "Coach suggested edit"；一键 Apply
+- TD-9 `/reject` reason 沉淀进 lessons
+
+### D. Sprint 10（候选）：团队级视图 + Worktree
+
+- **G4 团队级视图**（L6→L7）：Team Health 仪表盘 / Project Intelligence 升级
+- **B-1 Worktree 隔离**：让 L4 多 Agent 真正并发改代码
+
+### E. Hold（前期推迟）
+
+R-18 多 runtime / R-19 Kanban 升级 / R-21 Marketplace / R-22 team.yaml / R-23 Electron / R-24 Agent DM / R-25 拖拽 / 跨 Project 经验迁移 —— 等核心闭环退出条件全部满足后回归（[`focus-core-loop.md`](focus-core-loop.md) §7）。
+
+详见 [`PLAN.md` §Sprint 8+ 重排（前期聚焦下）](../PLAN.md#sprint-8-重排前期聚焦下)。
 
 ---
 
@@ -210,6 +234,7 @@ MVP（Sprint 1~7）全部完成。后续按需选择：
 | 文档 | 唯一职责 |
 |------|---------|
 | **本文档**（`project-status.md`）| 项目当前状态 / 阻塞 / 技术债 / 下一步 |
+| [`docs/focus-core-loop.md`](focus-core-loop.md) | **前期阶段性收敛锚点**（2026-05-12 生效）：核心闭环 7 步 / 现状评估 / Sprint 8+ 重排 / 退出条件 |
 | [`PLAN.md`](../PLAN.md) | 当前 + 未来 Sprint 的范围与验收（不维护"已完成"细节） |
 | [`docs/sprint1-milestone.md`](sprint1-milestone.md) | Sprint 1 历史交付记录（不再变更） |
 | [`docs/product-brief.md`](product-brief.md) | 战略：定位 / 目标用户 / 核心决策 / 非目标 |

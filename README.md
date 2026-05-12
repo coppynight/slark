@@ -152,6 +152,7 @@ slark/
 | 文档 | 用途 |
 |------|------|
 | **[docs/project-status.md](docs/project-status.md)** | **当前状态唯一来源** — 当前 Sprint / 阻塞 / 技术债 / 下一步 |
+| **[docs/focus-core-loop.md](docs/focus-core-loop.md)** | **前期阶段性收敛锚点**（2026-05-12 起）— 核心闭环 7 步 / 现状评估 / Sprint 8+ 重排 / 退出条件 |
 | [PLAN.md](PLAN.md) | 战术执行计划 — 当前 + 未来 Sprint 的范围与验收 |
 | [docs/product-brief.md](docs/product-brief.md) | 战略层：产品定位 / 目标用户 / 核心决策 / 非目标 |
 | [docs/technical-decisions.md](docs/technical-decisions.md) | 状态机、Token 预算、并发、错误 UI、per-project 存储等默认决策（D-N） |
@@ -174,7 +175,7 @@ slark/
 - ✅ **Per-Project Storage 重构（D-21~D-25）** — 数据从 `~/.slark/slark.db` 迁到 `<workspace>/.slark/`，支持 git 托管 + 跨 project 全局视图聚合
 - ✅ **Codex CLI runtime** — Codex 适配器 + 系统 Agent 兜底（PR [#2](https://github.com/coppynight/slark/pull/2) / [#3](https://github.com/coppynight/slark/pull/3)）
 
-当前焦点：**Sprint 8+ 远期路线** — Facilitator 多轮对话 / 多 runtime / Worktree 隔离 / Marketplace（详见 [docs/project-status.md](docs/project-status.md)）。
+当前焦点：**前期聚焦核心闭环打磨**（2026-05-12 起）— 把 L1→L7 七步使用闭环（打开项目 / 创建团队 / 初始 Workflow / 运行真实任务 / 过程反馈 / 结果反馈+迭代团队 / 项目高质量迭代）打磨到日常顺手。Sprint 8/9/10 主题改为深度优先：反馈姿势 → 即时回路 → 团队级视图+Worktree。详见 [docs/focus-core-loop.md](docs/focus-core-loop.md) 和 [docs/project-status.md](docs/project-status.md)。
 
 ## 🤝 共建（Contributing）
 
