@@ -118,6 +118,27 @@ export function ChannelPage() {
     }
   }, [channelId, threadId, runsByThread, markAutoJumped, hasAutoJumped, params, setParams]);
 
+  // Sprint 8 / Ro-5 fix：所有 useMemo 必须在 early return 之前调用，避免 React Hooks 顺序违规。
+  // 之前 channelAgentIdSet / channelAgents / projectAgentCount / goalIsPlaceholder 被放在
+  // `if (!channel)` 等 early return 之后，导致路由切换 / loading state 时 hook count 漂移，
+  // 抛 "Rendered more hooks than during the previous render"。
+  const channelAgentIdSet = useMemo(() => new Set(channelAgentIds), [channelAgentIds]);
+  const channelAgents = useMemo(
+    () => allAgents.filter((a) => channelAgentIdSet.has(a.id)),
+    [allAgents, channelAgentIdSet],
+  );
+  const projectAgentCount = useMemo(() => {
+    if (!channel?.project_id) return allAgents.length;
+    return allAgents.filter((a) => a.project_id === channel.project_id).length;
+  }, [allAgents, channel?.project_id]);
+  // Sprint 8 / Lo-13: goal 未设置（空字符串）或仍是 r1 老 project 残留的占位文本时，
+  // BuildTeamBanner 提示用户去 Settings 填 goal 再触发 Team Architect。
+  const goalIsPlaceholder = useMemo(() => {
+    const proj = projects.find((p) => p.id === channel?.project_id);
+    const g = (proj?.goal ?? '').trim();
+    return g.length === 0 || g.startsWith('(Goal not set yet');
+  }, [projects, channel?.project_id]);
+
   if (!channelId || !projectName) return null;
 
   // 等 channels 加载完再判断 not-found，避免刷新时闪一下错误页
@@ -151,13 +172,6 @@ export function ChannelPage() {
     }
   }
 
-  // channel 内的 agent（用于 header 右上角人数显示等）
-  const channelAgentIdSet = useMemo(() => new Set(channelAgentIds), [channelAgentIds]);
-  const channelAgents = useMemo(
-    () => allAgents.filter((a) => channelAgentIdSet.has(a.id)),
-    [allAgents, channelAgentIdSet],
-  );
-
   const send = (content: string, opts?: { asTask?: boolean }) => {
     wsClient.send({
       type: 'send_message',
@@ -179,20 +193,6 @@ export function ChannelPage() {
     next.set('thread', messageId);
     setParams(next);
   };
-
-  // 当前 project 内的 agent（用于 banner 是否显示）
-  const projectAgentCount = useMemo(() => {
-    if (!channel.project_id) return allAgents.length;
-    return allAgents.filter((a) => a.project_id === channel.project_id).length;
-  }, [allAgents, channel.project_id]);
-
-  // Sprint 8 / Lo-13: goal 未设置（空字符串）或仍是 r1 老 project 残留的占位文本时，
-  // BuildTeamBanner 提示用户去 Settings 填 goal 再触发 Team Architect。
-  const goalIsPlaceholder = useMemo(() => {
-    const proj = projects.find((p) => p.id === channel.project_id);
-    const g = (proj?.goal ?? '').trim();
-    return g.length === 0 || g.startsWith('(Goal not set yet');
-  }, [projects, channel.project_id]);
 
   return (
     <div className="flex-1 flex min-w-0 min-h-0">
