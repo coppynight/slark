@@ -6,40 +6,41 @@
 
 ## ✨ 特性
 
-- 🎯 **Goal → AI Team** — 打开 workspace + 描述 Goal，Team Architect 3 分钟内推荐一个可用的 AI 工程团队
-- 🟡 **1:1 还原 slock.ai UI** — Neo-Brutalism 风格（暖黄侧边栏 / 奶油主区 / 2px 黑边 / 粉色 CTA）
-- 🤖 **多 Agent 协作** — 通过 `@mention` 在频道/Thread 内触发任意 Agent
-- 🔗 **链式触发 + Thread 隔离** — Agent 之间互相 `@mention` 自动形成 Thread 对话，主线保持整洁
-- 📦 **Project 一等公民 + 数据 git 可托管** — 每个 Project 绑定独立 workspace，存储就在 `<workspace>/.slark/`（slark.db + knowledge jsonl），可以提交到 git 团队共享
-- 📋 **声明式 Workflow（YAML）** — 3 个内置模板（feature-development / bug-fix / research）+ Facilitator AI 主持的 Team Discussion 产 YAML
-- 📝 **Tasks 管理** — 频道内 Tasks Tab + 全局 Kanban 看板 + 状态变更系统消息
-- 🧠 **自动沉淀 + 进化** — Workflow 完成自动触发 Scribe 提炼 decisions / lessons；Evaluator + Coach 持续演化 Agent description
-- 🔍 **全文搜索 / 收藏 / 全局 Threads + Inbox 聚合**（跨 Project）
-- 🛠️ **适配器架构** — 支持 Cursor CLI / Cursor SDK / Codex CLI，后续可扩展 Claude Code / 其他 runtime
+**🎯 用得到的产品价值**
+
+- **Goal → AI Team** — 描述项目 Goal，Team Architect 3 分钟内推荐一个可用的 AI 工程团队
+- **Project 一等公民，数据可入仓** — 落在 `<workspace>/.slark/`（`slark.db` + `knowledge/*.jsonl`），团队通过 git 共享 workflow 与知识沉淀
+- **声明式 Workflow (YAML)** — 3 个内置模板（feature-development / bug-fix / research）+ Facilitator AI 主持 Team Discussion 产新 YAML
+- **Tasks 看板 / 全文搜索 / 收藏 / 全局 Threads + Inbox** — 跨 Project 聚合
+
+**🤝 多 Agent 协作**
+
+- `@mention` 在频道 / Thread 内触发任意 Agent
+- 链式触发 + Thread 隔离：Agent 互相 `@mention` 自动开 Thread，主线保持整洁
+- 1:1 还原 slock.ai 的 Neo-Brutalism UI（暖黄侧边栏 / 奶油主区 / 2px 黑边 / 粉色 CTA）
+
+**🧠 护城河：自演化**
+
+- **Delivery Loop** — Workflow 完成自动触发 Scribe 沉淀 `decisions` / `lessons`
+- **Evolution Loop** — Evaluator 周期评估 + Coach 提议演化 Agent description（人在回路 Apply / Rollback）
+- **适配器架构** — Cursor CLI / Cursor SDK / Codex CLI，可扩展 Claude / Kimi / Copilot / Gemini
 
 ## 📸 界面预览
 
-主频道视图 — 黄色侧边栏 + 频道消息流 + As Task 复选框：
+> 仅放下面两张能传递实际信息的；多 Agent 协作、任务流转、Thread 编排等核心场景的截图正在重新采集（之前的空状态截图已撤掉）。欢迎 PR 补充——见 [`docs/screenshots/README.md`](docs/screenshots/README.md) 采集规范（含场景清单 + 反例 + 规格）。
 
-![频道主视图](docs/screenshots/01-channel.png)
-
-Workflows 列表 — 3 个内置模板 + 从 Team Discussion 生成 + YAML Import/Export：
-
-![Workflows](docs/screenshots/02-workflows.png)
-
-全局 Tasks 看板 — TODO / IN PROGRESS / IN REVIEW / DONE 四列，可按频道过滤：
-
-![Tasks Kanban](docs/screenshots/03-tasks-kanban.png)
-
-跨 Project 全局 Threads 聚合：
-
-![Threads](docs/screenshots/04-threads.png)
-
-Open Project Folder 对话框 — 选个本地代码目录即可创建 Project，数据落到 `<workspace>/.slark/`：
-
-![Open Project Folder](docs/screenshots/05-open-project.png)
-
-> 上述截图取自当前 main 分支真实运行环境（macOS / Chrome / 视窗 1440×900）。
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/02-workflows.png"><img src="docs/screenshots/02-workflows.png" alt="Workflows" /></a>
+      <p align="center"><sub><b>Workflows</b> — 3 个内置模板 + <code>From Team Discussion</code> + YAML Import/Export</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/05-open-project.png"><img src="docs/screenshots/05-open-project.png" alt="Open Project Folder" /></a>
+      <p align="center"><sub><b>Open Project Folder</b> — 选个本地代码目录就创建 Project，数据落到 <code>&lt;workspace&gt;/.slark/</code></sub></p>
+    </td>
+  </tr>
+</table>
 
 ## 🚀 快速开始
 
@@ -175,7 +176,9 @@ slark/
 - ✅ **Per-Project Storage 重构（D-21~D-25）** — 数据从 `~/.slark/slark.db` 迁到 `<workspace>/.slark/`，支持 git 托管 + 跨 project 全局视图聚合
 - ✅ **Codex CLI runtime** — Codex 适配器 + 系统 Agent 兜底（PR [#2](https://github.com/coppynight/slark/pull/2) / [#3](https://github.com/coppynight/slark/pull/3)）
 
-当前焦点：**前期聚焦核心闭环打磨**（2026-05-12 起）— 把 L1→L7 七步使用闭环（打开项目 / 创建团队 / 初始 Workflow / 运行真实任务 / 过程反馈 / 结果反馈+迭代团队 / 项目高质量迭代）打磨到日常顺手。Sprint 8/9/10 主题改为深度优先：反馈姿势 → 即时回路 → 团队级视图+Worktree。详见 [docs/focus-core-loop.md](docs/focus-core-loop.md) 和 [docs/project-status.md](docs/project-status.md)。
+**当前焦点（2026-05-12 起）：前期聚焦核心闭环打磨**
+
+把 L1 → L7 七步使用闭环打磨到日常顺手：打开项目 → 创建团队 → 初始 Workflow → 运行真实任务 → 过程反馈 → 结果反馈 + 迭代团队 → 项目高质量迭代。Sprint 8 / 9 / 10 主题改为深度优先：**反馈姿势 → 即时回路 → 团队级视图 + Worktree**。详见 [`docs/focus-core-loop.md`](docs/focus-core-loop.md) 与 [`docs/project-status.md`](docs/project-status.md)。
 
 ## 🤝 共建（Contributing）
 
