@@ -27,16 +27,32 @@
 
 ## 📸 界面预览
 
-> 仅放下面两张能传递实际信息的；多 Agent 协作、任务流转、Thread 编排等核心场景的截图正在重新采集（之前的空状态截图已撤掉）。欢迎 PR 补充——见 [`docs/screenshots/README.md`](docs/screenshots/README.md) 采集规范（含场景清单 + 反例 + 规格）。
+> 下列截图用 demo 数据演示（OAuth + PKCE 工程场景），让 UI 截图不再"无话可说"。补图规范见 [`docs/screenshots/README.md`](docs/screenshots/README.md)（场景清单 + 反例 + 规格）。
 
 <table>
   <tr>
     <td width="50%" valign="top">
+      <a href="docs/screenshots/01-multi-agent-chain.png"><img src="docs/screenshots/01-multi-agent-chain.png" alt="Multi-agent chain" /></a>
+      <p align="center"><sub><b>多 Agent 链式对话</b> — 用户提需求 → <code>@Architect</code> 出 PKCE 方案 → <code>@Dev</code> 上代码；右上 <code>3 replies</code> 是 Thread 入口</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/04-thread-panel.png"><img src="docs/screenshots/04-thread-panel.png" alt="Thread panel" /></a>
+      <p align="center"><sub><b>Thread 隔离</b> — 三栏布局：主线讨论左中、Thread 子对话右栏并存，避免次要话题污染主线</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/03-tasks-kanban.png"><img src="docs/screenshots/03-tasks-kanban.png" alt="Tasks Kanban" /></a>
+      <p align="center"><sub><b>全局 Tasks 看板</b> — TODO / IN PROGRESS / IN REVIEW / DONE 跨频道聚合，assignee 是 Agent</sub></p>
+    </td>
+    <td width="50%" valign="top">
       <a href="docs/screenshots/02-workflows.png"><img src="docs/screenshots/02-workflows.png" alt="Workflows" /></a>
       <p align="center"><sub><b>Workflows</b> — 3 个内置模板 + <code>From Team Discussion</code> + YAML Import/Export</sub></p>
     </td>
-    <td width="50%" valign="top">
-      <a href="docs/screenshots/05-open-project.png"><img src="docs/screenshots/05-open-project.png" alt="Open Project Folder" /></a>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top" align="center">
+      <a href="docs/screenshots/05-open-project.png"><img src="docs/screenshots/05-open-project.png" alt="Open Project Folder" width="50%" /></a>
       <p align="center"><sub><b>Open Project Folder</b> — 选个本地代码目录就创建 Project，数据落到 <code>&lt;workspace&gt;/.slark/</code></sub></p>
     </td>
   </tr>

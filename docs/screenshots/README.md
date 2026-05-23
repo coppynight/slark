@@ -22,15 +22,15 @@
 
 补图时按这个顺序选场景，**3~5 张封顶**：
 
-| # | 场景 | 文件名建议 | 必须包含的信息 |
-|---|------|----------|--------------|
-| 1 | **多 Agent 链式对话**（核心差异化） | `01-multi-agent-chain.png` | ≥ 2 个 Agent 互相 @mention，Thread 展开可见 |
-| 2 | **Workflows 列表**（✅ 已有） | `02-workflows.png` | 3 个内置模板 + trigger command + `From Team Discussion` 按钮 |
+| # | 场景 | 文件名 | 必须包含的信息 |
+|---|------|--------|--------------|
+| 1 | **多 Agent 链式对话**（核心差异化） | `01-multi-agent-chain.png` | ≥ 2 个 Agent 互相 @mention；Thread 入口可见 |
+| 2 | **Workflows 列表** | `02-workflows.png` | 3 个内置模板 + trigger command + `From Team Discussion` 按钮 |
 | 3 | **Tasks 看板有内容** | `03-tasks-kanban.png` | 四列各 2-3 张卡，assignee chips 可见 |
-| 4 | **Workflow Run 进行中** | `04-workflow-running.png` | Thread 内可见 Architect/Dev/Reviewer 三段、进度条、step 状态 |
-| 5 | **Open Project Folder**（✅ 已有） | `05-open-project.png` | 对话框 + 路径示例 + per-project 存储说明 |
-| 6 | **Intelligence Tab** | `06-intelligence.png` | Scribe 沉淀的 decisions / lessons 列表，有 Pending / Approved 状态 |
-| 7 | **Agent Profile FEEDBACK Tab** | `07-feedback-diff.png` | Coach 提议的 description before/after diff，Apply/Reject 按钮可见 |
+| 4 | **Thread 隔离三栏视图** | `04-thread-panel.png` | 主线 + Thread panel 并存，演示链式触发 + 主线整洁 |
+| 5 | **Open Project Folder** | `05-open-project.png` | 对话框 + 路径示例 + per-project 存储说明 |
+| 6 | **Intelligence Tab**（可选） | `06-intelligence.png` | Scribe 沉淀的 decisions / lessons 列表，有 Pending / Approved 状态 |
+| 7 | **Agent Profile FEEDBACK Tab**（可选） | `07-feedback-diff.png` | Coach 提议的 description before/after diff，Apply/Reject 按钮可见 |
 
 > 这份清单是**菜单不是任务**——拍其中 3~5 张即可，覆盖"协作 / 流程 / 沉淀-进化"三类信号就够。
 
@@ -70,10 +70,19 @@ PR 评审时会重点看：
 
 | # | 场景 | 状态 |
 |---|------|------|
-| 1 | 多 Agent 链式对话 | ⚠️ **待补**（最高优先级）|
+| 1 | 多 Agent 链式对话 | ✅ `01-multi-agent-chain.png` |
 | 2 | Workflows 列表 | ✅ `02-workflows.png` |
-| 3 | Tasks 看板有内容 | ⚠️ 待补 |
-| 4 | Workflow Run 进行中 | ⚠️ 待补 |
+| 3 | Tasks 看板有内容 | ✅ `03-tasks-kanban.png` |
+| 4 | Thread 隔离三栏视图 | ✅ `04-thread-panel.png` |
 | 5 | Open Project Folder | ✅ `05-open-project.png` |
 | 6 | Intelligence Tab | ⏭️ 可选 |
 | 7 | Agent Profile FEEDBACK Tab | ⏭️ 可选 |
+
+### 当前 5 张是如何采集的
+
+1~4 号 demo 数据是用 `/tmp/slark-demo` workspace + sqlite3 直接 INSERT 假对话（OAuth + PKCE 工程场景）造的，没有真的 spawn cursor-agent。这样：
+- 截图**完全可重复**：同一个 seed 脚本任何时候都能复现同样的 UI
+- 不依赖真实 LLM 调用，省钱省时间
+- 内容可控（精挑过的代码块 + 真实工程对话）
+
+如果要复刻：参考 `git log --all --grep=screenshots` 找到当时的 seed 脚本（保存在 `/tmp/seed-demo.sh`，未入仓）。**不要把真实 project 截图直接放进来**——隐私 + 不可复现两个问题。
