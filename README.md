@@ -277,6 +277,7 @@ git push origin feat/your-feature
 
 - [@coppynight](https://github.com/coppynight) — 项目作者 + 主线维护，从 Phase 0 CLI Spike 到 Sprint 7 + Per-Project Storage 重构
 - [@z2z23n0](https://github.com/z2z23n0) — Codex CLI runtime 适配 + Codex 系统 Agent 兜底（PR [#2](https://github.com/coppynight/slark/pull/2) / [#3](https://github.com/coppynight/slark/pull/3)），打通了第二个 runtime
+- [@webbrain-one](https://github.com/webbrain-one) — 修复创建 Agent 时 `better-sqlite3` 原生绑定加载失败（PR [#8](https://github.com/coppynight/slark/pull/8)）
 
 也感谢提出建议、报 issue、点 star、转发推荐的所有朋友 —— 包括但不限于 [@zhaolianglp-glitch](https://github.com/zhaolianglp-glitch)（建议加截图，让 README 终于不再纯文字）。
 
