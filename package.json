@@ -31,8 +31,5 @@
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "tsx": "^4.19.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "sqlite3"]
   }
 }
