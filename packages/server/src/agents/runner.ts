@@ -4,6 +4,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import { PROCESS_TIMEOUT_MS } from '@slark/shared';
+import { toSpawnable } from '../cli-resolve.js';
 import type {
   BuildCommandParams,
   CLIAdapter,
@@ -45,6 +46,8 @@ export async function runCLI(
 ): Promise<RunnerResult> {
   const timeoutMs = options.timeoutMs ?? PROCESS_TIMEOUT_MS;
   const start = Date.now();
+  // Windows 上 npm 安装的 CLI 是 .cmd shim，需要解析成可直接 spawn 的入口（见 cli-resolve.ts）
+  const spawnable = await toSpawnable(spec.command, spec.args);
 
   return new Promise((resolve) => {
     const events: CLIEvent[] = [];
@@ -55,10 +58,11 @@ export async function runCLI(
     let timedOut = false;
     let aborted = false;
 
-    const child: ChildProcess = spawn(spec.command, spec.args, {
+    const child: ChildProcess = spawn(spawnable.command, spawnable.args, {
       cwd: spec.cwd,
       env: spec.env ? { ...process.env, ...spec.env } : process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     const timeoutHandle = setTimeout(() => {
