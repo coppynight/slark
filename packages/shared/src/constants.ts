@@ -41,7 +41,7 @@ export const GOAL_MAX_LENGTH = 500;
 // Team Architect System Agent（D-15 / D-19）
 // =============================================================================
 /** Team Architect spawn 超时（独立于 PROCESS_TIMEOUT_MS） */
-export const TEAM_ARCHITECT_TIMEOUT_MS = 30_000;
+export const TEAM_ARCHITECT_TIMEOUT_MS = 120_000; // Codex + 高推理强度实测约 35s，30s 会超时并回退到默认团队
 
 /** Scribe spawn 超时（thread 体量较大，给 60s）*/
 export const SCRIBE_TIMEOUT_MS = 60_000;

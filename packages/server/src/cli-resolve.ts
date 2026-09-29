@@ -39,7 +39,10 @@ export async function resolveCli(cmd: string): Promise<ResolvedCli | null> {
 }
 
 /** 把「命令名 + 参数」换成可直接 spawn 的形式；解析不到时原样返回，让 spawn 自己报 ENOENT。 */
-export async function toSpawnable(cmd: string, args: string[]): Promise<{ command: string; args: string[] }> {
+export async function toSpawnable(
+  cmd: string,
+  args: string[],
+): Promise<{ command: string; args: string[] }> {
   const resolved = await resolveCli(cmd);
   if (!resolved) return { command: cmd, args };
   return { command: resolved.command, args: [...resolved.prefixArgs, ...args] };
@@ -49,10 +52,10 @@ export async function toSpawnable(cmd: string, args: string[]): Promise<{ comman
 export async function execCli(
   cmd: string,
   args: string[],
-  options: { timeout: number },
+  options: { timeout: number; maxBuffer?: number },
 ): Promise<{ stdout: string; stderr: string }> {
   const { command, args: fullArgs } = await toSpawnable(cmd, args);
-  return execFileAsync(command, fullArgs, { timeout: options.timeout, windowsHide: true });
+  return execFileAsync(command, fullArgs, { ...options, windowsHide: true });
 }
 
 async function resolvePosix(cmd: string): Promise<ResolvedCli | null> {
@@ -69,7 +72,10 @@ async function resolveWindows(cmd: string): Promise<ResolvedCli | null> {
   let candidates: string[];
   try {
     const { stdout } = await execFileAsync('where', [cmd], { timeout: 3000, windowsHide: true });
-    candidates = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    candidates = stdout
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
   } catch {
     return null;
   }

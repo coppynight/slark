@@ -13,6 +13,7 @@ import type {
   SpawnSpec,
 } from './types.js';
 import { execCli, resolveCli } from '../cli-resolve.js';
+import { loadCodexModels, STATIC_CODEX_MODELS } from './codex-models.js';
 
 const REASONING_ALIASES: Record<string, string> = {
   'extra-high': 'xhigh',
@@ -149,14 +150,8 @@ export class CodexAdapter implements CLIAdapter {
   }
 
   async getSupportedModels(): Promise<string[]> {
-    return [
-      'gpt-5.5',
-      'gpt-5.4',
-      'gpt-5.4-mini',
-      'gpt-5.3-codex',
-      'gpt-5.3-codex-spark',
-      'gpt-5.2',
-    ];
+    const models = await loadCodexModels();
+    return models.length > 0 ? models.map((m) => m.slug) : STATIC_CODEX_MODELS;
   }
 
   private parseItemStarted(item: unknown): CLIEvent[] {

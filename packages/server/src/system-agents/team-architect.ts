@@ -7,7 +7,7 @@
  *
  * 兜底（Q-2 + Review 5）：任一情况走固定三件套 Architect + Dev + Reviewer：
  *   - 本地 coding runtime 未安装
- *   - spawn 超时（独立 TEAM_ARCHITECT_TIMEOUT_MS = 30s）
+ *   - spawn 超时（TEAM_ARCHITECT_TIMEOUT_MS，默认 120s，可用 SLARK_TEAM_ARCHITECT_TIMEOUT_MS 覆盖）
  *   - 返回内容非 JSON / 解析失败 / 字段缺失
  */
 
@@ -15,6 +15,13 @@ import { TEAM_ARCHITECT_TIMEOUT_MS } from '@slark/shared';
 import type { ReasoningEffort, Runtime, TeamSuggestion, TeamSuggestionAgent } from '@slark/shared';
 import { createSystemAdapter, runtimeForAdapter } from '../agents/adapter-factory.js';
 import { runWithAdapter } from '../agents/runner.js';
+import { loadCodexModels, type CodexModelInfo } from '../agents/codex-models.js';
+
+/** 可用 SLARK_TEAM_ARCHITECT_TIMEOUT_MS 覆盖（毫秒），推理较慢的模型 / 机器上可以调大 */
+function teamArchitectTimeoutMs(): number {
+  const fromEnv = Number(process.env.SLARK_TEAM_ARCHITECT_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : TEAM_ARCHITECT_TIMEOUT_MS;
+}
 
 // =============================================================================
 // 公共接口
@@ -60,40 +67,48 @@ export async function suggestTeam(input: SuggestTeamInput): Promise<TeamSuggesti
   // spawn 立刻失败。Team Architect 只需要根据 goal + workspace_path 字符串
   // 给出推荐，不需要实际读取项目文件 —— prompt 内部已包含 workspace_path
   // 作为上下文信息，spawn cwd 留给 Node.js 默认值（process.cwd()）即可。
-  const prompt = buildTeamArchitectPrompt(input, defaultRuntime);
+  const codexModels = defaultRuntime === 'codex' ? await loadCodexModels() : [];
+  const prompt = buildTeamArchitectPrompt(input, defaultRuntime, codexModels);
 
   try {
     const result = await runWithAdapter(
       adapter,
       { prompt, permissive: false },
-      { timeoutMs: TEAM_ARCHITECT_TIMEOUT_MS },
+      { timeoutMs: teamArchitectTimeoutMs() },
     );
 
     if (result.timedOut) {
-      return fallbackTeam(defaultRuntime, 'Team Architect spawn timed out');
+      return fallbackTeam(defaultRuntime, 'Team Architect spawn timed out', codexModels);
     }
     if (result.aborted) {
-      return fallbackTeam(defaultRuntime, 'Team Architect spawn aborted');
+      return fallbackTeam(defaultRuntime, 'Team Architect spawn aborted', codexModels);
     }
     if (result.events.some((e) => e.type === 'error')) {
       const err = result.events.find((e) => e.type === 'error');
-      const errMsg =
-        err && err.type === 'error' ? err.message : 'Team Architect CLI error';
-      return fallbackTeam(defaultRuntime, errMsg);
+      const errMsg = err && err.type === 'error' ? err.message : 'Team Architect CLI error';
+      return fallbackTeam(defaultRuntime, errMsg, codexModels);
     }
 
-    const parsed = parseTeamSuggestion(result.fullText, defaultRuntime);
+    const parsed = parseTeamSuggestion(result.fullText, defaultRuntime, codexModels);
     if (!parsed) {
       // S-1 调试：打印 SDK / CLI 实际返回的前 800 字符 + 长度，定位 prompt-output mismatch
       // eslint-disable-next-line no-console
       console.warn(
         `[team-architect] unparseable output; fullText.length=${result.fullText.length}, head=${JSON.stringify(result.fullText.slice(0, 800))}`,
       );
-      return fallbackTeam(defaultRuntime, 'Team Architect returned unparseable output');
+      return fallbackTeam(
+        defaultRuntime,
+        'Team Architect returned unparseable output',
+        codexModels,
+      );
     }
     return { ...parsed, is_fallback: false };
   } catch (e) {
-    return fallbackTeam(defaultRuntime, `Team Architect spawn failed: ${(e as Error).message}`);
+    return fallbackTeam(
+      defaultRuntime,
+      `Team Architect spawn failed: ${(e as Error).message}`,
+      codexModels,
+    );
   }
 }
 
@@ -101,7 +116,11 @@ export async function suggestTeam(input: SuggestTeamInput): Promise<TeamSuggesti
 // Prompt 构造
 // =============================================================================
 
-function buildTeamArchitectPrompt(input: SuggestTeamInput, defaultRuntime: Runtime): string {
+function buildTeamArchitectPrompt(
+  input: SuggestTeamInput,
+  defaultRuntime: Runtime,
+  codexModels: CodexModelInfo[],
+): string {
   const hintBlock = input.workspace_hint
     ? `\n\nWorkspace hint:\n${input.workspace_hint.stack ? `- Stack: ${input.workspace_hint.stack}` : ''}${
         input.workspace_hint.readme_excerpt
@@ -111,72 +130,89 @@ function buildTeamArchitectPrompt(input: SuggestTeamInput, defaultRuntime: Runti
     : '';
 
   const modelCatalog =
-    defaultRuntime === 'codex'
+    defaultRuntime === 'codex' && codexModels.length > 0
       ? [
-          '## Model catalog (Codex CLI model IDs)',
+          // 目录来自本机 `codex debug models`：只列当前账号可用的模型，新模型发布后自动出现
+          '## Model catalog (Codex CLI model IDs available to this account, most capable first)',
           '',
-          'Use runtime="codex" for every agent.',
+          'Use runtime="codex" for every agent. Only use model IDs from this list.',
           '',
-          '- "gpt-5.5" — strongest general reasoning; preferred for Architect / Reviewer.',
-          '- "gpt-5.4" — strong everyday coding and balanced implementation.',
-          '- "gpt-5.4-mini" — fast lightweight work.',
-          '- "gpt-5.3-codex" — coding-optimized model for implementation and refactors.',
-          '- "gpt-5.3-codex-spark" — fast coding model for small changes.',
-          '- "gpt-5.2" — professional work fallback.',
+          ...codexModels.map(
+            (m) => `- "${m.slug}" — ${m.displayName}${m.description ? `: ${m.description}` : ''}`,
+          ),
           '',
           'Selection guidelines:',
-          '- Architect / Lead Reviewer → gpt-5.5; reasoning="high" or "extra-high"',
-          '- Developer / Refactorer → gpt-5.3-codex or gpt-5.4; reasoning="medium"',
-          '- Lightweight assistant → gpt-5.4-mini or gpt-5.3-codex-spark; reasoning="low"',
+          `- Architect / Lead Reviewer → the most capable model ("${codexModels[0]!.slug}"); reasoning="high" or "extra-high"`,
+          '- Developer / Refactorer → a strong model from the list suited to coding; reasoning="medium"',
+          '- Lightweight assistant → a faster model from the list; reasoning="low"',
           '- Codex CLI ignores thinking/context fields; set them to null.',
         ]
-      : [
-          '## Model catalog (Cursor SDK approved IDs only)',
-          '',
-          'Use runtime="cursor" for every agent.',
-          '',
-          'Pick the right model for each role from this list — diversity is good (use vendors\' strengths together):',
-          '',
-          '### Top-tier reasoning (Architect / Senior Reviewer / Critical decisions)',
-          '- "claude-opus-4-7" — Anthropic flagship; deep reasoning, long-context, top code quality. PREFERRED for Architect / Reviewer.',
-          '- "gpt-5.5"        — OpenAI flagship; broad knowledge, strong system design, generalist. Great alternative for Architect.',
-          '- "claude-opus-4-6" — previous gen Opus; cheaper, still strong.',
-          '',
-          '### Balanced workhorse (main implementers; Backend / Generalist Dev)',
-          '- "composer-2"        — Cursor in-house balanced default; safe fallback.',
-          '- "claude-sonnet-4-6" — Anthropic mid-tier; much faster than Opus, good quality.',
-          '- "gpt-5.4"           — OpenAI mid-tier.',
-          '',
-          '### Code-specialised (pure refactor / codegen / Dev focused on code)',
-          '- "gpt-5.3-codex"     — OpenAI codex; excels at code edits.',
-          '- "gpt-5.1-codex-max" — long-context codex variant.',
-          '',
-          '### Multimodal / tool use / integration (Frontend with screenshots, QA, Integration)',
-          '- "gemini-3.1-pro"    — Google flagship; multimodal + grounding + tool use. PREFERRED for QA / Frontend / Integration.',
-          '- "gemini-3-flash"    — Google mid-tier, faster.',
-          '',
-          '### Lightweight (high-frequency simple tasks; cheap)',
-          '- "gpt-5-mini"        — OpenAI light',
-          '- "claude-haiku-4-5"  — Anthropic light',
-          '- "gemini-2.5-flash"  — Google ultra-fast',
-          '',
-          '## Selection guidelines',
-          '',
-          'Empirical observation as of 2026: Claude family generally outperforms others on raw coding & refactoring;',
-          "GPT family is broader generalist; Gemini family is best at multimodal & tool-use. Pick accordingly.",
-          '',
-          '- Architect / Designer / Lead Reviewer → claude-opus-4-7 (preferred) or gpt-5.5; thinking=true, context="1m", reasoning="high"~"extra-high"',
-          '- Code Reviewer / Security Reviewer  → claude-opus-4-7; thinking=true, context="1m", reasoning="high"',
-          '- Backend / Business Implementation  → claude-sonnet-4-6 (preferred for code quality) or composer-2; thinking=false, reasoning="medium"',
-          '- Pure code Dev (refactor / codegen) → claude-sonnet-4-6 (preferred) or gpt-5.3-codex; reasoning="medium"',
-          '- Frontend (UI / UX, possibly visual) → gemini-3.1-pro (multimodal) or claude-sonnet-4-6; thinking=false, reasoning="medium"',
-          '- QA / Integration / Tester          → gemini-3.1-pro (strong tool use & grounding); reasoning="medium"',
-          '- Generalist / PM-style coordinator  → gpt-5.5 (broad knowledge); reasoning="medium"',
-          '- Lightweight assistant role         → gpt-5-mini or claude-haiku-4-5; reasoning="low"',
-          '',
-          'Pair vendors deliberately. Typical strong shape: opus Architect + sonnet Backend Dev + gemini QA + opus Reviewer.',
-          "Don't overspend: only Architect / Reviewer should be on Opus-tier; implementers should be Sonnet/composer-2/codex.",
-        ];
+      : defaultRuntime === 'codex'
+        ? [
+            '## Model catalog (Codex CLI model IDs)',
+            '',
+            'Use runtime="codex" for every agent.',
+            '',
+            '- "gpt-5.5" — strongest general reasoning; preferred for Architect / Reviewer.',
+            '- "gpt-5.4" — strong everyday coding and balanced implementation.',
+            '- "gpt-5.4-mini" — fast lightweight work.',
+            '- "gpt-5.3-codex" — coding-optimized model for implementation and refactors.',
+            '- "gpt-5.3-codex-spark" — fast coding model for small changes.',
+            '- "gpt-5.2" — professional work fallback.',
+            '',
+            'Selection guidelines:',
+            '- Architect / Lead Reviewer → gpt-5.5; reasoning="high" or "extra-high"',
+            '- Developer / Refactorer → gpt-5.3-codex or gpt-5.4; reasoning="medium"',
+            '- Lightweight assistant → gpt-5.4-mini or gpt-5.3-codex-spark; reasoning="low"',
+            '- Codex CLI ignores thinking/context fields; set them to null.',
+          ]
+        : [
+            '## Model catalog (Cursor SDK approved IDs only)',
+            '',
+            'Use runtime="cursor" for every agent.',
+            '',
+            "Pick the right model for each role from this list — diversity is good (use vendors' strengths together):",
+            '',
+            '### Top-tier reasoning (Architect / Senior Reviewer / Critical decisions)',
+            '- "claude-opus-4-7" — Anthropic flagship; deep reasoning, long-context, top code quality. PREFERRED for Architect / Reviewer.',
+            '- "gpt-5.5"        — OpenAI flagship; broad knowledge, strong system design, generalist. Great alternative for Architect.',
+            '- "claude-opus-4-6" — previous gen Opus; cheaper, still strong.',
+            '',
+            '### Balanced workhorse (main implementers; Backend / Generalist Dev)',
+            '- "composer-2"        — Cursor in-house balanced default; safe fallback.',
+            '- "claude-sonnet-4-6" — Anthropic mid-tier; much faster than Opus, good quality.',
+            '- "gpt-5.4"           — OpenAI mid-tier.',
+            '',
+            '### Code-specialised (pure refactor / codegen / Dev focused on code)',
+            '- "gpt-5.3-codex"     — OpenAI codex; excels at code edits.',
+            '- "gpt-5.1-codex-max" — long-context codex variant.',
+            '',
+            '### Multimodal / tool use / integration (Frontend with screenshots, QA, Integration)',
+            '- "gemini-3.1-pro"    — Google flagship; multimodal + grounding + tool use. PREFERRED for QA / Frontend / Integration.',
+            '- "gemini-3-flash"    — Google mid-tier, faster.',
+            '',
+            '### Lightweight (high-frequency simple tasks; cheap)',
+            '- "gpt-5-mini"        — OpenAI light',
+            '- "claude-haiku-4-5"  — Anthropic light',
+            '- "gemini-2.5-flash"  — Google ultra-fast',
+            '',
+            '## Selection guidelines',
+            '',
+            'Empirical observation as of 2026: Claude family generally outperforms others on raw coding & refactoring;',
+            'GPT family is broader generalist; Gemini family is best at multimodal & tool-use. Pick accordingly.',
+            '',
+            '- Architect / Designer / Lead Reviewer → claude-opus-4-7 (preferred) or gpt-5.5; thinking=true, context="1m", reasoning="high"~"extra-high"',
+            '- Code Reviewer / Security Reviewer  → claude-opus-4-7; thinking=true, context="1m", reasoning="high"',
+            '- Backend / Business Implementation  → claude-sonnet-4-6 (preferred for code quality) or composer-2; thinking=false, reasoning="medium"',
+            '- Pure code Dev (refactor / codegen) → claude-sonnet-4-6 (preferred) or gpt-5.3-codex; reasoning="medium"',
+            '- Frontend (UI / UX, possibly visual) → gemini-3.1-pro (multimodal) or claude-sonnet-4-6; thinking=false, reasoning="medium"',
+            '- QA / Integration / Tester          → gemini-3.1-pro (strong tool use & grounding); reasoning="medium"',
+            '- Generalist / PM-style coordinator  → gpt-5.5 (broad knowledge); reasoning="medium"',
+            '- Lightweight assistant role         → gpt-5-mini or claude-haiku-4-5; reasoning="low"',
+            '',
+            'Pair vendors deliberately. Typical strong shape: opus Architect + sonnet Backend Dev + gemini QA + opus Reviewer.',
+            "Don't overspend: only Architect / Reviewer should be on Opus-tier; implementers should be Sonnet/composer-2/codex.",
+          ];
 
   return [
     'You are the Team Architect for a new AI engineering team in Slark (a local AI Team OS).',
@@ -222,7 +258,7 @@ function buildTeamArchitectPrompt(input: SuggestTeamInput, defaultRuntime: Runti
     '      "role": "architect",                    // REQUIRED: one of "architect"/"implementer"/"reviewer"/"qa"/"scribe"',
     '      "description": "...",                   // 1-3 sentences, written as the agent\'s system prompt in second person',
     `      "runtime": "${defaultRuntime}",                    // use "${defaultRuntime}" for this local setup`,
-    `      "model": "${defaultRuntime === 'codex' ? 'gpt-5.5' : 'claude-opus-4-7'}",             // pick from the catalog above`,
+    `      "model": "${defaultRuntime === 'codex' ? (codexModels[0]?.slug ?? 'gpt-5.5') : 'claude-opus-4-7'}",             // pick from the catalog above`,
     '      "reasoning": "high",                    // low / medium / high / extra-high / max',
     '      "thinking": true,                       // true / false / null (null = model default)',
     '      "context": "1m"                         // "300k" / "1m" / null (null = model default)',
@@ -239,7 +275,11 @@ function buildTeamArchitectPrompt(input: SuggestTeamInput, defaultRuntime: Runti
 // JSON 解析 + 兜底
 // =============================================================================
 
-function parseTeamSuggestion(raw: string, defaultRuntime: Runtime): Omit<TeamSuggestion, 'is_fallback'> | null {
+function parseTeamSuggestion(
+  raw: string,
+  defaultRuntime: Runtime,
+  codexModels: CodexModelInfo[],
+): Omit<TeamSuggestion, 'is_fallback'> | null {
   const cleaned = stripJSONFences(raw).trim();
   if (!cleaned) return null;
 
@@ -294,7 +334,15 @@ function parseTeamSuggestion(raw: string, defaultRuntime: Runtime): Omit<TeamSug
     // （例如 'claude-opus-4-7' 落到 codex runtime 上无法识别）→ 同步 fallback 到当前
     // runtime 的默认 model；当 runtime 一致或 LLM 没给时按现状处理。
     const runtimeMatches = llmRuntime === defaultRuntime;
-    const model = runtimeMatches && llmModel ? llmModel : defaultModel(defaultRuntime, 'dev');
+    const proposed =
+      runtimeMatches && llmModel ? llmModel : defaultModel(defaultRuntime, 'dev', codexModels);
+    // 有实时目录时，目录外的 model（过期 ID / 账号不可用）一律替换成可用的默认值
+    const model =
+      defaultRuntime === 'codex' &&
+      codexModels.length > 0 &&
+      !codexModels.some((m) => m.slug === proposed)
+        ? defaultModel(defaultRuntime, 'dev', codexModels)
+        : proposed;
 
     // Sprint 4-ext / Phase A：thinking / context 接受多种 LLM 输出变体
     // Codex CLI 不支持 thinking / context 字段，强制为 null 与 fallback 三件套保持一致。
@@ -335,13 +383,7 @@ function parseTeamSuggestion(raw: string, defaultRuntime: Runtime): Omit<TeamSug
   return { agents, rationale };
 }
 
-const STANDARD_ROLES = new Set([
-  'architect',
-  'implementer',
-  'reviewer',
-  'qa',
-  'scribe',
-]);
+const STANDARD_ROLES = new Set(['architect', 'implementer', 'reviewer', 'qa', 'scribe']);
 
 function normalizeRole(raw: string): string {
   const lower = raw.trim().toLowerCase();
@@ -394,7 +436,7 @@ function checkRequiredRoles(agents: TeamSuggestionAgent[]): string[] {
 /** 去掉 assistant 有时会加的 ```json ... ``` 包裹 */
 function stripJSONFences(text: string): string {
   const match = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return match ? match[1] ?? '' : text;
+  return match ? (match[1] ?? '') : text;
 }
 
 /**
@@ -435,9 +477,13 @@ function parseContext(raw: unknown): import('@slark/shared').ContextSize | null 
 // 兜底三件套（Q-2 / Review 5）
 // =============================================================================
 
-function fallbackTeam(defaultRuntime: Runtime, reason: string): TeamSuggestion {
+function fallbackTeam(
+  defaultRuntime: Runtime,
+  reason: string,
+  codexModels: CodexModelInfo[] = [],
+): TeamSuggestion {
   return {
-    agents: fallbackAgents(defaultRuntime),
+    agents: fallbackAgents(defaultRuntime, codexModels),
     rationale:
       'Default team (Team Architect unavailable). Please configure runtime/model for each agent before use.',
     is_fallback: true,
@@ -445,7 +491,7 @@ function fallbackTeam(defaultRuntime: Runtime, reason: string): TeamSuggestion {
   };
 }
 
-function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
+function fallbackAgents(runtime: Runtime, codexModels: CodexModelInfo[]): TeamSuggestionAgent[] {
   return [
     {
       name: 'Architect',
@@ -453,7 +499,7 @@ function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
       description:
         'You design APIs, data models, and module boundaries. Before proposing a solution, skim the codebase to understand existing conventions. Focus on clarity and maintainability over cleverness.',
       runtime,
-      model: defaultModel(runtime, 'architect'),
+      model: defaultModel(runtime, 'architect', codexModels),
       reasoning: 'high',
       thinking: runtime === 'cursor' ? true : null,
       context: runtime === 'cursor' ? '1m' : null,
@@ -464,7 +510,7 @@ function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
       description:
         "You implement features based on the Architect's design. Write clean, typed code with tests. Always wrap async calls in try/catch and surface errors with structured context.",
       runtime,
-      model: defaultModel(runtime, 'dev'),
+      model: defaultModel(runtime, 'dev', codexModels),
       reasoning: 'medium',
       thinking: runtime === 'cursor' ? false : null,
       context: null,
@@ -475,7 +521,7 @@ function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
       description:
         'You review code for correctness, security, and maintainability. Call out issues directly and suggest concrete fixes. Do not rubber-stamp; push back when something feels off.',
       runtime,
-      model: defaultModel(runtime, 'reviewer'),
+      model: defaultModel(runtime, 'reviewer', codexModels),
       reasoning: 'high',
       thinking: runtime === 'cursor' ? true : null,
       context: runtime === 'cursor' ? '1m' : null,
@@ -483,8 +529,14 @@ function fallbackAgents(runtime: Runtime): TeamSuggestionAgent[] {
   ];
 }
 
-function defaultModel(runtime: Runtime, role: 'architect' | 'dev' | 'reviewer'): string {
+function defaultModel(
+  runtime: Runtime,
+  role: 'architect' | 'dev' | 'reviewer',
+  codexModels: CodexModelInfo[] = [],
+): string {
   if (runtime === 'codex') {
+    // 有实时目录时用账号可用的第一个（最强）模型，避免写死的 ID 在当前账号下不可用
+    if (codexModels[0]) return codexModels[0].slug;
     return role === 'dev' ? 'gpt-5.3-codex' : 'gpt-5.5';
   }
   return role === 'dev' ? 'claude-sonnet-4-6' : 'claude-opus-4-7';

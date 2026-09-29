@@ -37,6 +37,7 @@ import { concurrencyQueue } from './queue.js';
 import { runWithAdapter } from './runner.js';
 import { createAdapterForRuntime } from './adapter-factory.js';
 import type { CLIAdapter, CLIEvent } from './types.js';
+import { isUnsupportedModelError } from './codex-models.js';
 
 // Sprint 3 CP3：活跃 agent_runs 的 AbortController，支持 /abort 与 workflow override 时
 // kill 正在跑的 cursor-agent 进程。key = agent_runs.id（数据库自增）。
@@ -90,7 +91,11 @@ export interface TriggerResult {
 
 export interface AgentEngineDeps {
   db: Database;
-  logger?: { info: (msg: string) => void; warn: (msg: string) => void; error: (msg: string) => void };
+  logger?: {
+    info: (msg: string) => void;
+    warn: (msg: string) => void;
+    error: (msg: string) => void;
+  };
 }
 
 /**
@@ -146,9 +151,7 @@ export async function triggerAgent(
     : messageRepo.listChannelMain(db, ctx.channelId, 50);
 
   // 排除触发消息自身与触发消息之后的历史
-  const historyBeforeTrigger = history.filter(
-    (m) => m.created_at < ctx.triggerMessage.created_at,
-  );
+  const historyBeforeTrigger = history.filter((m) => m.created_at < ctx.triggerMessage.created_at);
 
   // Sprint 4 CP5：注入 audience 匹配的 lessons + 最新 decisions（仅 approved）
   const audiences = ['all', 'team', agent.name, agent.id];
@@ -167,7 +170,10 @@ export async function triggerAgent(
 
   // 标记被注入的 lessons 已被使用（用于 listForInjection 的 ORDER BY use_count）
   if (lessons.length > 0) {
-    lessonRepo.bumpUseCount(db, lessons.map((l) => l.id));
+    lessonRepo.bumpUseCount(
+      db,
+      lessons.map((l) => l.id),
+    );
   }
 
   log.info(
@@ -239,60 +245,81 @@ export async function triggerAgent(
   const aborter = new AbortController();
   activeAborters.set(run.id, aborter);
 
-  const runResult = await concurrencyQueue.run(() =>
-    runWithAdapter(
-      adapter,
-      {
-        prompt: built.prompt,
-        model: agent.model,
-        reasoning: agent.reasoning,
-        thinking: agent.thinking,
-        context: agent.context,
-        workingDirectory: cwd,
-        envVars: agent.env_vars,
-        permissive: true,
-      },
-      {
-        signal: aborter.signal,
-        onEvent: (event: CLIEvent) => {
-          activity.recordEvent(event);
-
-          // 状态切换：首个 text/thinking delta → working
-          if (
-            !hasSwitchedToWorking &&
-            (event.type === 'text.delta' ||
-              event.type === 'thinking.delta' ||
-              event.type === 'tool.started')
-          ) {
-            hasSwitchedToWorking = true;
-            agentRunRepo.updateStatus(db, run.id, 'working');
-            broadcastAgentStatus(agent.id, 'working', ctx.channelId);
-          }
-
-          // 流式文本 → 广播 message_stream
-          if (event.type === 'text.delta') {
-            streamedChars += event.text.length;
-            hub.broadcast(ctx.channelId, {
-              type: 'message_stream',
-              message_id: placeholder.id,
-              delta: event.text,
-            });
-          }
-
-          // 工具调用状态 → system event 可选，MVP 仅通过 activity 记录（前端 Profile 页看）
-          if (event.type === 'error') {
-            log.warn(`[engine] agent ${agent.name} error: ${event.message}`);
-          }
+  const spawnOnce = (model: typeof agent.model) =>
+    concurrencyQueue.run(() =>
+      runWithAdapter(
+        adapter,
+        {
+          prompt: built.prompt,
+          model,
+          reasoning: agent.reasoning,
+          thinking: agent.thinking,
+          context: agent.context,
+          workingDirectory: cwd,
+          envVars: agent.env_vars,
+          permissive: true,
         },
-        onStderr: (line) => {
-          // Codex 的 stdin 提示等，不需要上报
-          if (!line.includes('Reading additional input')) {
-            log.warn(`[${agent.name} stderr] ${line.slice(0, 200)}`);
-          }
+        {
+          signal: aborter.signal,
+          onEvent: (event: CLIEvent) => {
+            activity.recordEvent(event);
+
+            // 状态切换：首个 text/thinking delta → working
+            if (
+              !hasSwitchedToWorking &&
+              (event.type === 'text.delta' ||
+                event.type === 'thinking.delta' ||
+                event.type === 'tool.started')
+            ) {
+              hasSwitchedToWorking = true;
+              agentRunRepo.updateStatus(db, run.id, 'working');
+              broadcastAgentStatus(agent.id, 'working', ctx.channelId);
+            }
+
+            // 流式文本 → 广播 message_stream
+            if (event.type === 'text.delta') {
+              streamedChars += event.text.length;
+              hub.broadcast(ctx.channelId, {
+                type: 'message_stream',
+                message_id: placeholder.id,
+                delta: event.text,
+              });
+            }
+
+            // 工具调用状态 → system event 可选，MVP 仅通过 activity 记录（前端 Profile 页看）
+            if (event.type === 'error') {
+              log.warn(`[engine] agent ${agent.name} error: ${event.message}`);
+            }
+          },
+          onStderr: (line) => {
+            // Codex 的 stdin 提示等，不需要上报
+            if (!line.includes('Reading additional input')) {
+              log.warn(`[${agent.name} stderr] ${line.slice(0, 200)}`);
+            }
+          },
         },
-      },
-    ),
-  );
+      ),
+    );
+
+  let effectiveModel = agent.model;
+  let runResult = await spawnOnce(effectiveModel);
+
+  // Codex 账号不支持该模型（过期或写死的模型 ID）：提示用户，并用 CLI 默认模型重试一次
+  if (runResult.ok && effectiveModel && agent.runtime === 'codex') {
+    const modelError = runResult.result.events.find(
+      (e) => e.type === 'error' && isUnsupportedModelError(e.message),
+    );
+    if (modelError) {
+      emitSystemError(
+        db,
+        ctx.channelId,
+        agent.name,
+        `model "${effectiveModel}" is not available for this Codex account; retrying with the Codex default model. Update the model in this agent's profile.`,
+      );
+      effectiveModel = null;
+      runResult = await spawnOnce(effectiveModel);
+    }
+  }
 
   // 进程已退出（正常或被 abort），可以解除注册
   activeAborters.delete(run.id);
@@ -316,7 +343,8 @@ export async function triggerAgent(
   const result = runResult.result;
   const fullText = result.fullText.trim();
   const hasError = result.events.some((e) => e.type === 'error');
-  const finalOk = !result.timedOut && !hasError && (result.exitCode === 0 || result.exitCode === null);
+  const finalOk =
+    !result.timedOut && !hasError && (result.exitCode === 0 || result.exitCode === null);
 
   // 7. 更新占位消息的最终 content / metadata
   const finalMetadata: MessageMetadata = {
@@ -325,13 +353,15 @@ export async function triggerAgent(
     triggered_by_message_id: ctx.triggerMessage.id,
     agent_meta: {
       runtime: agent.runtime,
-      model: agent.model ?? 'default',
+      model: effectiveModel ?? 'default',
       total_duration_ms: result.duration_ms,
       input_tokens_estimate: built.estimatedTokens,
       output_tokens_estimate: Math.ceil(fullText.length / 4),
     },
     tool_calls: result.events
-      .filter((e): e is Extract<CLIEvent, { type: 'tool.completed' }> => e.type === 'tool.completed')
+      .filter(
+        (e): e is Extract<CLIEvent, { type: 'tool.completed' }> => e.type === 'tool.completed',
+      )
       .map((e) => ({
         tool: e.tool,
         args: {},
@@ -353,7 +383,8 @@ export async function triggerAgent(
     }
   }
 
-  const finalContent = fullText || (finalOk ? '(no response)' : 'Agent failed to produce a response.');
+  const finalContent =
+    fullText || (finalOk ? '(no response)' : 'Agent failed to produce a response.');
   messageRepo.updateContent(db, placeholder.id, finalContent, finalMetadata);
   const updated = messageRepo.getById(db, placeholder.id) ?? placeholder;
 
@@ -399,11 +430,7 @@ export async function triggerAgent(
  * 仅 emit WebSocket 事件；不再写 agents.status（字段已删除，状态从 agent_runs 派生）。
  * 前端通过 ws-bridge 接收事件并维护 per-channel run map（D-1 / D-18）。
  */
-function broadcastAgentStatus(
-  agentId: string,
-  status: AgentStatus,
-  channelId: string,
-): void {
+function broadcastAgentStatus(agentId: string, status: AgentStatus, channelId: string): void {
   hub.broadcast(channelId, {
     type: 'agent_status',
     agent_id: agentId,
@@ -459,17 +486,15 @@ function collectSkillKeysFromEvents(
     if (!haystack) continue;
     // 抓所有看起来像 workspace 内相对路径的片段
     // 形式 1：绝对路径包含 workspacePath
-    const absRe = new RegExp(
-      `${escapeRegex(wsAbs)}\\/([\\w.-]+(?:\\/[\\w.-]+)?)`,
-      'g',
-    );
+    const absRe = new RegExp(`${escapeRegex(wsAbs)}\\/([\\w.-]+(?:\\/[\\w.-]+)?)`, 'g');
     let m;
     while ((m = absRe.exec(haystack))) {
       const seg = m[1];
       if (seg) keys.add(normalizeKey(seg));
     }
     // 形式 2：相对路径直接出现（启发式：以 src/ tests/ scripts/ 等开头）
-    const relRe = /(?:^|[\s,(])((?:src|tests?|spec|scripts?|packages|apps|lib|docs|public)\/[\w.-]+(?:\/[\w.-]+)?)/g;
+    const relRe =
+      /(?:^|[\s,(])((?:src|tests?|spec|scripts?|packages|apps|lib|docs|public)\/[\w.-]+(?:\/[\w.-]+)?)/g;
     while ((m = relRe.exec(haystack))) {
       const seg = m[1];
       if (seg) keys.add(normalizeKey(seg));
