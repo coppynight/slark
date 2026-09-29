@@ -29,7 +29,9 @@ interface Props {
   onClose: () => void;
 }
 
-const PATH_PLACEHOLDER = '/Users/you/code/my-project';
+const PATH_PLACEHOLDER = /Windows/i.test(navigator.userAgent)
+  ? 'D:\\code\\my-project'
+  : '/Users/you/code/my-project';
 
 export function OpenProjectDialog({ open, onClose }: Props) {
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ export function OpenProjectDialog({ open, onClose }: Props) {
   if (!open) return null;
 
   const trimmed = path.trim();
-  const isValid = trimmed.length > 0 && trimmed.startsWith('/');
+  const isValid = trimmed.length > 0 && isAbsolutePath(trimmed);
   const previewName = isValid ? deriveProjectName(trimmed) : '';
   const previewDisplay = isValid ? deriveDisplayName(trimmed) : '';
 
@@ -227,9 +229,19 @@ export function OpenProjectDialog({ open, onClose }: Props) {
 
 const NAME_SLUG_RE = /^[a-z0-9_-]+$/;
 
+/** POSIX 绝对路径（/Users/...），或 Windows 盘符路径（D:\code / D:/code）/ UNC 路径（\\server\share） */
+function isAbsolutePath(p: string): boolean {
+  return p.startsWith('/') || /^[A-Za-z]:[\\/]/.test(p) || p.startsWith('\\\\');
+}
+
+/** 路径最后一段；同时兼容 `/` 和 Windows 的 `\` 分隔符 */
+function lastPathSegment(absPath: string): string | undefined {
+  return absPath.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+}
+
 /** workspace 末段 → URL-safe slug（小写 + - + _ + 数字）*/
 function deriveProjectName(absPath: string): string {
-  const last = absPath.replace(/\/+$/, '').split('/').pop() ?? 'project';
+  const last = lastPathSegment(absPath) || 'project';
   const slug = last
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-')
@@ -241,7 +253,7 @@ function deriveProjectName(absPath: string): string {
 
 /** workspace 末段 → 友好显示名（保留原大小写 + 空格）*/
 function deriveDisplayName(absPath: string): string {
-  const last = absPath.replace(/\/+$/, '').split('/').pop() ?? 'Project';
+  const last = lastPathSegment(absPath) || 'Project';
   return last.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 

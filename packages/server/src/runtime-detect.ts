@@ -1,14 +1,11 @@
 /**
- * Runtime 检测：通过 `which <cmd>` 判断本地 CLI 是否安装。
+ * Runtime 检测：通过 resolveCli（macOS/Linux 用 `which`，Windows 用 `where`）判断本地 CLI 是否安装。
  *
  * MVP 只有 Cursor 会被实际 spawn；其他 runtime 即使检测到也不可用（返回给前端显示 "coming soon"）。
  */
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import type { Runtime } from '@slark/shared';
-
-const execFileAsync = promisify(execFile);
+import { execCli, resolveCli } from './cli-resolve.js';
 
 const RUNTIME_COMMANDS: Record<Runtime, string> = {
   cursor: 'cursor-agent',
@@ -41,25 +38,17 @@ export async function detectRuntime(runtime: Runtime): Promise<RuntimeDetectResu
 
 async function doDetect(runtime: Runtime): Promise<RuntimeDetectResult> {
   const cmd = RUNTIME_COMMANDS[runtime];
+  const resolved = await resolveCli(cmd);
+  if (!resolved) return { installed: false };
+
+  // 尝试获取版本号
+  let version: string | undefined;
   try {
-    const { stdout: pathOut } = await execFileAsync('which', [cmd], { timeout: 3000 });
-    const path = pathOut.trim();
-    if (!path) return { installed: false };
-
-    // 尝试获取版本号
-    let version: string | undefined;
-    try {
-      const { stdout } = await execFileAsync(cmd, ['--version'], { timeout: 3000 });
-      version = stdout.trim().split('\n')[0];
-    } catch {
-      // 部分 CLI 的 --version 未必走 0 退出码，忽略
-    }
-
-    return { installed: true, path, version };
-  } catch (err) {
-    return {
-      installed: false,
-      error: (err as Error).message,
-    };
+    const { stdout } = await execCli(cmd, ['--version'], { timeout: 10_000 });
+    version = stdout.trim().split('\n')[0];
+  } catch {
+    // 部分 CLI 的 --version 未必走 0 退出码，忽略
   }
+
+  return { installed: true, path: resolved.path, version };
 }

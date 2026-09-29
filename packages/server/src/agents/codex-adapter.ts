@@ -5,8 +5,6 @@
  * Output: JSONL events written to stdout.
  */
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import type {
   AdapterCapabilities,
   BuildCommandParams,
@@ -14,8 +12,8 @@ import type {
   CLIEvent,
   SpawnSpec,
 } from './types.js';
-
-const execFileAsync = promisify(execFile);
+import { execCli, resolveCli } from '../cli-resolve.js';
+import { loadCodexModels, STATIC_CODEX_MODELS } from './codex-models.js';
 
 const REASONING_ALIASES: Record<string, string> = {
   'extra-high': 'xhigh',
@@ -37,16 +35,13 @@ export class CodexAdapter implements CLIAdapter {
 
   async checkInstallation() {
     try {
-      const { stdout: version } = await execFileAsync('codex', ['--version'], {
-        timeout: 3000,
-      });
-      const { stdout: path } = await execFileAsync('which', ['codex'], {
-        timeout: 3000,
-      });
+      const resolved = await resolveCli('codex');
+      if (!resolved) return { installed: false, error: 'codex not found on PATH' };
+      const { stdout: version } = await execCli('codex', ['--version'], { timeout: 10_000 });
       return {
         installed: true,
         version: version.trim(),
-        path: path.trim(),
+        path: resolved.path,
       };
     } catch (e) {
       return { installed: false, error: (e as Error).message };
@@ -155,14 +150,8 @@ export class CodexAdapter implements CLIAdapter {
   }
 
   async getSupportedModels(): Promise<string[]> {
-    return [
-      'gpt-5.5',
-      'gpt-5.4',
-      'gpt-5.4-mini',
-      'gpt-5.3-codex',
-      'gpt-5.3-codex-spark',
-      'gpt-5.2',
-    ];
+    const models = await loadCodexModels();
+    return models.length > 0 ? models.map((m) => m.slug) : STATIC_CODEX_MODELS;
   }
 
   private parseItemStarted(item: unknown): CLIEvent[] {

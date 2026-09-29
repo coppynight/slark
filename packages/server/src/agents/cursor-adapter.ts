@@ -5,8 +5,6 @@
  * 输出映射见 docs/cli-event-format.md
  */
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import type {
   AdapterCapabilities,
   BuildCommandParams,
@@ -14,8 +12,7 @@ import type {
   CLIEvent,
   SpawnSpec,
 } from './types.js';
-
-const execFileAsync = promisify(execFile);
+import { execCli, resolveCli } from '../cli-resolve.js';
 
 export class CursorAdapter implements CLIAdapter {
   readonly name = 'cursor';
@@ -36,16 +33,13 @@ export class CursorAdapter implements CLIAdapter {
 
   async checkInstallation() {
     try {
-      const { stdout: version } = await execFileAsync('cursor-agent', ['--version'], {
-        timeout: 3000,
-      });
-      const { stdout: path } = await execFileAsync('which', ['cursor-agent'], {
-        timeout: 3000,
-      });
+      const resolved = await resolveCli('cursor-agent');
+      if (!resolved) return { installed: false, error: 'cursor-agent not found on PATH' };
+      const { stdout: version } = await execCli('cursor-agent', ['--version'], { timeout: 10_000 });
       return {
         installed: true,
         version: version.trim(),
-        path: path.trim(),
+        path: resolved.path,
       };
     } catch (e) {
       return { installed: false, error: (e as Error).message };
@@ -218,9 +212,7 @@ export class CursorAdapter implements CLIAdapter {
 
   async getSupportedModels(): Promise<string[]> {
     try {
-      const { stdout } = await execFileAsync('cursor-agent', ['--list-models'], {
-        timeout: 5000,
-      });
+      const { stdout } = await execCli('cursor-agent', ['--list-models'], { timeout: 10_000 });
       return stdout
         .split('\n')
         .map((l) => l.trim())
