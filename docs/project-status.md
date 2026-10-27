@@ -4,7 +4,7 @@
 > 询问"当前进展到哪了 / 下一步做什么 / 还有什么阻塞"时，只看这一份。
 > 其他文档（PLAN.md / product-brief.md / technical-decisions.md）不维护状态，只维护内容。
 
-**最近更新**：2026-05-12（**方向收敛：前期聚焦核心闭环**——引入 [`focus-core-loop.md`](focus-core-loop.md)）
+**最近更新**：2026-10-27（Asia/Shanghai）（**v0.1.0 开源卫生**：按 `main` 回写 2026-05-12 之后的落地；下一阶段仍是 Sprint 8 候选）
 
 ---
 
@@ -12,12 +12,28 @@
 
 | 项 | 值 |
 |---|---|
-| 当前阶段 | **前期聚焦核心闭环打磨**（[`focus-core-loop.md`](focus-core-loop.md) v0.1 生效） |
-| 最近 Sprint | Per-Project Storage 重构 Sprint A+B+C 已完成（D-21~D-25，merged 到 `main`） |
-| 下一阶段 | **Sprint 8 候选**：反馈姿势（L5）+ 真实任务体验（L4）—— 见 [`focus-core-loop.md`](focus-core-loop.md) §6 |
-| 前置工作 | **dogfood 第一轮**：用 Slark 自己跑一个真实任务，记录 7 步闭环卡点，灌入 Sprint 8 backlog |
-| 当前分支 | `main` |
-| 类型检查 | ✅ pnpm -r typecheck 全绿 |
+| 当前阶段 | **前期聚焦核心闭环打磨**（[`focus-core-loop.md`](focus-core-loop.md) **v0.3** 生效）。G0 解阻已在 `main` |
+| 最近落地 | 2026-09-29 Windows 支持 + Codex 模型目录改从 CLI 读取（`8ddff4e`，[#11](https://github.com/coppynight/slark/pull/11)） |
+| 下一阶段 | **Sprint 8 候选**：反馈姿势（L5 / G1）+ 真实任务体验（L4 / G3）—— 见本文档 §5，以及 [`focus-core-loop.md`](focus-core-loop.md) §4 的 G1 / G3 |
+| 版本 | `0.1.0`（本仓库准备标记的首个版本；**tag / GitHub Release 尚未打**，合并后由维护者打 `v0.1.0`） |
+| 当前分支 | `main`。`feat/per-project-storage` 是残留分支，**不要再合并**；D-21~D-25 已由 `9160539`（2026-05-11）squash 进 `main` |
+| 类型检查 | `pnpm typecheck`（即 `pnpm -r typecheck`）。CI：`.github/workflows/typecheck.yml`，push / PR → `main` |
+| 社区 | Issue [#7](https://github.com/coppynight/slark/issues/7) 仍开放（`help wanted`）：Agent 从项目导入 / Fork，以及 Claude Code Adapter。重型用户 / 团队账号系统前期**非目标** |
+
+### 2026-05-12 之后落在 main 上的变更（截至 2026-10-27）
+
+状态文档上次改于 `bddb0bf`（2026-05-12）。下列提交均在 `main` 上，按 `git log` 核对：
+
+| 日期 | 提交 | 落地 |
+|---|---|---|
+| 2026-05-11 | `9160539` | Per-Project Storage D-21~D-25（早于上次状态刷新；当时摘要里的分 commit SHA 不在 `main` 上，已在下文更正） |
+| 2026-05-12 | `70b481d` [#2](https://github.com/coppynight/slark/pull/2)、`f921a93` [#3](https://github.com/coppynight/slark/pull/3) | Codex CLI runtime + 系统 Agent 的 Codex 兜底 |
+| 2026-05-12 | `bddb0bf`、`0aa11cb`、`090ce43` | 引入 focus-core-loop；dogfood r1；同日 v0.3 矫正 v0.2 的 mdc pivot |
+| 2026-05-13 | `d83ca2b` Lo-26、`e43c26c` Lo-22、`503306c` Lo-13、`d45a73d` Ro-5 | Workflow 角色占位符、cold start banner、goal 默认值清空、ChannelPage Hooks 顺序 |
+| 2026-05-13 | `6026367`、`8a1ca7a` | dogfood r2 round 1：workflow 走到 `done`；Ro-7 / Ro-8 记入，尚未修 |
+| 2026-05-23 | `6339f42`、`73e63d2` | README 界面预览与多 Agent 截图 |
+| 2026-08-25 | `435327e` [#8](https://github.com/coppynight/slark/pull/8) | 恢复 better-sqlite3 原生绑定 |
+| 2026-09-29 | `8ddff4e` [#11](https://github.com/coppynight/slark/pull/11) | Windows 上启动本地 CLI / 打开项目；Codex 模型目录改从 CLI 读取 |
 
 ### 2026-05-12 方向收敛摘要
 
@@ -28,11 +44,13 @@
 - **重排**：Sprint 8/9/10 改为深度优先（反馈姿势→即时回路→团队级视图+Worktree）；R-18/19/21/22/23/24/25 等广度项推迟到 Sprint 11+
 - **退出条件**：闭环可演示 + 反馈姿势日常化 + 团队级视图可读（详见 `focus-core-loop.md` §7）
 
-### Per-Project Storage Sprint A+B+C 已交付摘要（2026-05-08）
+> 本小节写于 focus-core-loop v0.1（`bddb0bf`）。同日 `090ce43` 把该文档更新到 **v0.3**（收回 v0.2 的全面 mdc pivot，Sprint 8 曾收成 G0：Lo-26 + Lo-22）。G0 与 Lo-13、Ro-5 已于 2026-05-13 进 `main`，dogfood r2 round 1 已把 workflow 跑到 `done`。**下一阶段不再是 G0**，回到反馈姿势 + 真实任务体验（§5）。
 
-基于 [`per-project-storage-design.md`](per-project-storage-design.md) v0.3，落地三个 Sprint：
+### Per-Project Storage Sprint A+B+C 已交付摘要（2026-05-11，main `9160539`）
 
-**Sprint A — 存储层重写（commit `023fcec`）**
+基于 [`per-project-storage-design.md`](per-project-storage-design.md) v0.3，落地三个 Sprint。Sprint A/B/C 在残留分支 `feat/per-project-storage` 上分 commit 开发，**squash 进 `main` 的只有 `9160539`**。`023fcec` / `21b146b` 不在 `main` 上。
+
+**Sprint A — 存储层重写**
 - ✅ 新增 `config/projects-store.ts` `config/project-meta.ts` `config/projects-service.ts`：~/.slark/projects.json + <ws>/.slark/project.json 双层文件存储
 - ✅ 重写 `db/index.ts` 为 LRU handle pool（max=20，30min idle close）+ `findDbByResource` 资源反查 + warm-up 接口
 - ✅ schema.sql 删 projects 表 + 全表去 project_id；`db/repos.ts` 全部 repo 改为 per-project 形态
@@ -42,12 +60,12 @@
 - ✅ 启动期 warm-up 所有 recent project；shutdown 关闭全部 db
 - ✅ 前端 `lib/api.ts` createProject 改调 /api/projects/open；新增 closeProject / deleteProjectStorage
 
-**Sprint B — UX 对齐 Close vs Delete（commit `21b146b`）**
+**Sprint B — UX 对齐 Close vs Delete**
 - ✅ OpenProjectDialog：调 /api/projects/open，区分 is_new / reopen；reopen 拉已存在 channels；新建 seed #general
 - ✅ ProjectSettingsPage Danger Zone 双按钮：Close（保留 .slark/）+ Delete .slark/（自定义模态需输入项目名 slug 校验）
 - ✅ Sidebar Switcher ⋯ 菜单加 "✕ Close" 项
 
-**Sprint C — Knowledge JSONL + 全局视图 + WS + 文档（本 commit）**
+**Sprint C — Knowledge JSONL + 全局视图 + WS + 文档**
 - ✅ Knowledge Store：`config/knowledge-store.ts` 在 approve / reject / update 后整体重写 `<ws>/.slark/knowledge/{decisions,lessons}.jsonl`（仅 review_status='approved'）
 - ✅ 跨 project 全局视图聚合：`/api/inbox(workflow-runs)`、`/api/threads`、`/api/messages/search`、`/api/saved`、`/api/agents`、`/api/channels`、`/api/tasks`、`/api/skills` 全部走 `forEachProjectDb` 遍历 handle pool
 - ✅ projectsService.ensureReadme：自动生成 `.slark/README.md`（含目录结构、git 入仓建议）
@@ -86,7 +104,7 @@
 后续 Sprint 8+ 主题（远期路线）：
 
 - Facilitator 多轮真对话（升级 Sprint 7 single-shot）
-- R-18 多 runtime 适配（Codex / Claude / Kimi / Copilot / Gemini）
+- R-18 多 runtime：Codex CLI 已落地（[#2](https://github.com/coppynight/slark/pull/2) / [#3](https://github.com/coppynight/slark/pull/3)，2026-05-12）。Claude Code Adapter，以及 Agent 从项目导入 / Fork，见开放 Issue [#7](https://github.com/coppynight/slark/issues/7)（`enhancement` + `help wanted`）。重型用户 / 团队账号系统前期非目标（同一 Issue 第 2 点，维护者已对齐：本地同 Project 协作即可）。Kimi / Copilot / Gemini 仍未排期
 - R-19 跨 Project 全局视图（Kanban）
 - B-1 Worktree 多 Agent 隔离
 - Agent / Workflow Marketplace
@@ -183,7 +201,7 @@ Sprint 3 完成后剩余的延后项（详见 [`sprint3-milestone.md`](sprint3-m
 | # | 项 | 影响 | 计划清理时机 |
 |---|---|------|------------|
 | TD-8 | Workflow YAML `input` 注入仅 summary（前 1000 字符）| 长输出会被截断，下游 step 看不到完整内容 | Sprint 4+（评估是否值得加 token 预算策略） |
-| TD-9 | `/reject` reason 仅注入 prompt，不沉淀 lessons | 反馈不可复用 | Sprint 4 Scribe 落地后顺手补 |
+| TD-9 | `/reject` reason 只经 transcript 进入 Scribe prompt，没有显式 lesson 候选 | 反馈不可复用，用户看不到「这条 reject 沉淀了」 | 仍开放。Sprint 4 只做了隐式路径（见 [`sprint4-milestone.md`](sprint4-milestone.md) CP3）。随反馈姿势 / G1 再做 |
 | TD-12 | `/override` 在 `running` 状态不支持，必须先 `/abort` | 用户体验略别扭 | Sprint 4+（涉及 step output 占位 + agent kill 同步语义） |
 | TD-13 | Responsibilities UI 编辑器缺失（仅自动 derive）| 用户不能手动调整 role/authority | Sprint 7 配合 Facilitator |
 | TD-14 | Workflow YAML 行内编辑器缺失 | 必须 export 改了再 import | Sprint 4+ |
@@ -194,19 +212,17 @@ Sprint 3 完成后剩余的延后项（详见 [`sprint3-milestone.md`](sprint3-m
 
 ## 5. 下一步建议
 
-MVP（Sprint 1~7）已交付。**2026-05-12 起方向收敛于"前期聚焦核心闭环"**（详见 [`focus-core-loop.md`](focus-core-loop.md)）。
+MVP（Sprint 1~7）已交付。**2026-05-12 起方向收敛于「前期聚焦核心闭环」**（[`focus-core-loop.md`](focus-core-loop.md) v0.3）。dogfood 与 G0 解阻已经发生；**下一阶段仍是 Sprint 8 候选：反馈姿势 + 真实任务体验**。
 
-### A. 立即（本周）：dogfood 第一轮
+### A. 已完成（2026-05-12 ~ 05-13）：dogfood + G0
 
-用 Slark 自己跑一个真实任务，验证 L1→L7 七步闭环的实际体验：
-
-- 选一个**真实可交付**的项目内题目（不是 demo / 不是玩具）
-- 全程使用 Slark 推进，记录每一步的"卡 / 别扭 / 想给反馈但没地方给"
-- 产出 `docs/dogfood/2026-05-12-round-1.md` 报告 → 直接驱动 Sprint 8 backlog
+- dogfood r1 记录在 [`dogfood/2026-05-12-round-1.md`](dogfood/2026-05-12-round-1.md)
+- G0 已在 `main`：Lo-26（workflow YAML 角色占位符 + Runner 双路径解析）、Lo-22（cold start 改为 Active Agents Banner）、Lo-13（goal 默认空字符串）、Ro-5（ChannelPage Hooks 顺序）
+- dogfood r2 round 1（[`dogfood/2026-05-12-round-2.md`](dogfood/2026-05-12-round-2.md)）把 workflow 跑到 `done`，并核对上述修复。Ro-4 / Ro-7 / Ro-8 等仍开放，**不改变**下一阶段排序。r2 round 2（reject 路径 / Lo-25 复现）当时记为待安排，此后没有新的 dogfood 提交
 
 ### B. Sprint 8（候选）：反馈姿势 + 真实任务体验
 
-按 [`focus-core-loop.md`](focus-core-loop.md) §6：
+按 [`focus-core-loop.md`](focus-core-loop.md) §4 的 G1 / G3。v0.3 §6 曾把 Sprint 8 收成 G0 解阻，该项已完成，不再当作下一阶段：
 
 - **G1 反馈姿势**（L5 红 → 黄）：消息级 inline 👍/👎 + reason 入口；`agent_feedback.source='inline'`；落地 `learn-fast-loop.html` 视觉
 - **G3 真实任务体验**（L4 黄 → 绿）：TD-8 长输出 token 预算策略 / TD-12 running 状态 override / 单消息 timeout 自适应 / Activity 降噪
@@ -223,7 +239,7 @@ MVP（Sprint 1~7）已交付。**2026-05-12 起方向收敛于"前期聚焦核�
 
 ### E. Hold（前期推迟）
 
-R-18 多 runtime / R-19 Kanban 升级 / R-21 Marketplace / R-22 team.yaml / R-23 Electron / R-24 Agent DM / R-25 拖拽 / 跨 Project 经验迁移 —— 等核心闭环退出条件全部满足后回归（[`focus-core-loop.md`](focus-core-loop.md) §7）。
+R-18 其余 runtime（Codex 已落地；Claude Code Adapter 与 Agent 导入 / Fork 见 Issue [#7](https://github.com/coppynight/slark/issues/7)，欢迎外部 PR；Kimi / Copilot / Gemini 仍未排期）/ R-19 Kanban 升级 / R-21 Marketplace / R-22 team.yaml / R-23 Electron / R-24 Agent DM / R-25 拖拽 / 跨 Project 经验迁移 —— 等核心闭环退出条件全部满足后回归（[`focus-core-loop.md`](focus-core-loop.md) §7）。重型用户 / 团队账号系统前期非目标。
 
 详见 [`PLAN.md` §Sprint 8+ 重排（前期聚焦下）](../PLAN.md#sprint-8-重排前期聚焦下)。
 

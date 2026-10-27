@@ -124,7 +124,7 @@ async function main() {
   // REST
   app.get('/api/health', async () => ({
     ok: true,
-    version: '0.0.1',
+    version: '0.1.0',
     slark_home: config.slarkHome,
     projects: projectsService.list().length,
     ws: hub.snapshot(),
