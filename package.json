@@ -1,6 +1,6 @@
 {
   "name": "slark",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "Slark — Local AI Agent collaboration platform (slock.ai local clone)",
   "type": "module",
